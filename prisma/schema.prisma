@@ -1,0 +1,384 @@
+// Prisma Schema for Apartment Management & Community Services Marketplace
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                    String                 @id @default(uuid())
+  email                 String                 @unique
+  passwordHash          String
+  name                  String
+  phone                 String
+  role                  String                 @default("RESIDENT") // RESIDENT, PROVIDER, MANAGEMENT, ADMIN
+  avatar                String?
+  isVerified            Boolean                @default(false)
+  status                String                 @default("ACTIVE") // ACTIVE, SUSPENDED, PENDING
+  communityId           String?
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+
+  community             Community?             @relation(fields: [communityId], references: [id])
+  residentProfile       ResidentProfile?
+  providerProfile       ProviderProfile?
+  communityMembers      CommunityMember[]
+  serviceRequests       ServiceRequest[]       @relation("ResidentRequests")
+  requirements          Requirement[]          @relation("ResidentRequirements")
+  requirementApps       RequirementApplication[] @relation("ApplicantApplications")
+  reviews               Review[]               @relation("ResidentReviews")
+  notifications         Notification[]
+  notificationPref      NotificationPreference?
+  reports               Report[]               @relation("ReporterReports")
+  sentMessages          Message[]              @relation("SentMessages")
+  adminApprovals        AdminApproval[]        @relation("AdminApprover")
+}
+
+model Community {
+  id           String            @id @default(uuid())
+  name         String
+  code         String            @unique
+  address      String
+  city         String
+  state        String
+  postalCode   String
+  totalBlocks  Int               @default(4)
+  totalFlats   Int               @default(240)
+  heroImage    String?
+  noticesJson  String?           // JSON array of community notices
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  users        User[]
+  members      CommunityMember[]
+  requirements Requirement[]
+}
+
+model CommunityMember {
+  id           String      @id @default(uuid())
+  userId       String
+  communityId  String
+  block        String      // e.g. "Tower A", "Block B"
+  flatNumber   String      // e.g. "304"
+  residentType String      @default("OWNER") // OWNER, TENANT
+  isVerified   Boolean     @default(true)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  community    Community   @relation(fields: [communityId], references: [id], onDelete: Cascade)
+
+  @@unique([communityId, block, flatNumber])
+}
+
+model ResidentProfile {
+  id                 String   @id @default(uuid())
+  userId             String   @unique
+  alternatePhone     String?
+  familyMembersCount Int      @default(3)
+  intercomNumber     String?
+  bio                String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model ProviderProfile {
+  id                   String             @id @default(uuid())
+  userId               String             @unique
+  businessName         String
+  experienceYears      Int                @default(3)
+  serviceArea          String             @default("Entire Campus & Surrounding 3km")
+  bio                  String?
+  rating               Float              @default(5.0)
+  reviewCount          Int                @default(0)
+  completedJobsCount   Int                @default(0)
+  startingPrice        Float              @default(299)
+  availableToday       Boolean            @default(true)
+  isApproved           Boolean            @default(false)
+  verificationStatus   String             @default("PENDING") // PENDING, APPROVED, REJECTED, SUSPENDED
+  approvalNotes        String?
+  idProofType          String?            // AADHAAR, PAN, VOTER_ID, PASSPORT
+  idProofUrl           String?
+  policeVerificationUrl String?
+  beforeAfterPhotos    String?            // JSON array of strings
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+
+  user                 User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  documents            ProviderDocument[]
+  listings             ServiceListing[]
+  availabilities       ServiceAvailability[]
+  serviceRequests      ServiceRequest[]
+  reviews              Review[]
+}
+
+model ProviderDocument {
+  id                String          @id @default(uuid())
+  providerProfileId String
+  docType           String          // ID_PROOF, POLICE_VERIFICATION, TRADE_LICENSE, CERTIFICATE
+  fileUrl           String
+  fileName          String
+  status            String          @default("PENDING") // PENDING, APPROVED, REJECTED
+  rejectionReason   String?
+  uploadedAt        DateTime        @default(now())
+
+  providerProfile   ProviderProfile @relation(fields: [providerProfileId], references: [id], onDelete: Cascade)
+}
+
+model Category {
+  id          String           @id @default(uuid())
+  name        String
+  slug        String           @unique
+  description String
+  icon        String
+  group       String           // HOME_MAINTENANCE, CLEANING_HOUSEKEEPING, VEHICLE, HOUSEHOLD_PERSONAL, EDUCATION_SKILLS, PROFESSIONAL
+  launchStatus String          @default("LAUNCHED") // LAUNCHED, LAUNCHING_NOW, COMING_SOON
+  isActive    Boolean          @default(true)
+  sortOrder   Int              @default(0)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  subCategories SubCategory[]
+  listings      ServiceListing[]
+}
+
+model SubCategory {
+  id          String           @id @default(uuid())
+  categoryId  String
+  name        String
+  slug        String
+  description String?
+  icon        String?
+  isActive    Boolean          @default(true)
+  sortOrder   Int              @default(0)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  category    Category         @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  listings    ServiceListing[]
+
+  @@unique([categoryId, slug])
+}
+
+model ServiceListing {
+  id                String           @id @default(uuid())
+  providerProfileId String
+  categoryId        String
+  subCategoryId     String?
+  title             String
+  description       String
+  priceType         String           @default("STARTING_PRICE") // FIXED, STARTING_PRICE, HOURLY, PER_VISIT
+  price             Float
+  visibility        String           @default("APARTMENT_ONLY") // APARTMENT_ONLY, COMMUNITY, PUBLIC
+  status            String           @default("PENDING_APPROVAL") // DRAFT, PENDING_APPROVAL, APPROVED, PUBLISHED, AVAILABLE, TEMPORARILY_UNAVAILABLE, CLOSED
+  approvalNotes     String?
+  photosJson        String?          // JSON array of photo URLs
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  providerProfile   ProviderProfile  @relation(fields: [providerProfileId], references: [id], onDelete: Cascade)
+  category          Category         @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  subCategory       SubCategory?     @relation(fields: [subCategoryId], references: [id])
+  serviceRequests   ServiceRequest[]
+}
+
+model ServiceAvailability {
+  id                String          @id @default(uuid())
+  providerProfileId String
+  dayOfWeek         Int             // 0=Sunday, 1=Monday... 6=Saturday
+  startTime         String          @default("09:00")
+  endTime           String          @default("19:00")
+  isAvailable       Boolean         @default(true)
+
+  providerProfile   ProviderProfile @relation(fields: [providerProfileId], references: [id], onDelete: Cascade)
+
+  @@unique([providerProfileId, dayOfWeek])
+}
+
+model ServiceRequest {
+  id                 String                @id @default(uuid())
+  requestNumber      String                @unique // e.g. "REQ-2026-0042"
+  residentId         String
+  providerProfileId  String
+  serviceListingId   String?
+  categoryName       String
+  subCategoryName    String?
+  preferredDate      String
+  preferredTimeSlot  String                // e.g. "10:00 AM - 12:00 PM"
+  block              String
+  flatNumber         String
+  problemDescription String
+  photosJson         String?               // JSON array
+  additionalMessage  String?
+  status             String                @default("REQUESTED") // REQUESTED, ACCEPTED, VISIT_SCHEDULED, IN_PROGRESS, COMPLETED, REVIEWED, REJECTED, EXPIRED, CANCELLED
+  cancellationReason String?
+  completionPhoto    String?
+  completionNotes    String?
+  createdAt          DateTime              @default(now())
+  updatedAt          DateTime              @updatedAt
+
+  resident           User                  @relation("ResidentRequests", fields: [residentId], references: [id], onDelete: Cascade)
+  providerProfile    ProviderProfile       @relation(fields: [providerProfileId], references: [id], onDelete: Cascade)
+  serviceListing     ServiceListing?       @relation(fields: [serviceListingId], references: [id])
+  statusHistory      RequestStatusHistory[]
+  review             Review?
+  conversations      Conversation[]
+}
+
+model RequestStatusHistory {
+  id               String         @id @default(uuid())
+  serviceRequestId String
+  fromStatus       String?
+  toStatus         String
+  note             String?
+  changedById      String?
+  createdAt        DateTime       @default(now())
+
+  serviceRequest   ServiceRequest @relation(fields: [serviceRequestId], references: [id], onDelete: Cascade)
+}
+
+// FEATURE 5: REQUIREMENTS (Completely separate from Services)
+model Requirement {
+  id                 String                   @id @default(uuid())
+  requirementNumber  String                   @unique // e.g. "REQMT-2026-0012"
+  residentId         String
+  communityId        String
+  category           String                   // SECURITY, COOK, MAID, HOUSEKEEPING, DRIVER, OTHER
+  roleTitle          String
+  scheduleType       String                   // FULL_TIME, PART_TIME, ON_DEMAND, LIVE_IN
+  duration           String                   // LONG_TERM, SHORT_TERM, TEMPORARY
+  payRangeMin        Float
+  payRangeMax        Float
+  payPeriod          String                   @default("MONTHLY") // MONTHLY, DAILY, HOURLY
+  description        String
+  preferredStartTime String?
+  status             String                   @default("OPEN") // OPEN, IN_REVIEW, FILLED, CLOSED
+  applicantCount     Int                      @default(0)
+  createdAt          DateTime                 @default(now())
+  updatedAt          DateTime                 @updatedAt
+
+  resident           User                     @relation("ResidentRequirements", fields: [residentId], references: [id], onDelete: Cascade)
+  community          Community                @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  applications       RequirementApplication[]
+  conversations      Conversation[]
+}
+
+model RequirementApplication {
+  id             String      @id @default(uuid())
+  requirementId  String
+  applicantId    String
+  applicantRole  String      @default("APPLICANT")
+  coverNote      String
+  expectedPay    Float
+  experience     String
+  status         String      @default("PENDING") // PENDING, SHORTLISTED, SELECTED, REJECTED
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  requirement    Requirement @relation(fields: [requirementId], references: [id], onDelete: Cascade)
+  applicant      User        @relation("ApplicantApplications", fields: [applicantId], references: [id], onDelete: Cascade)
+}
+
+model Conversation {
+  id               String          @id @default(uuid())
+  residentId       String
+  providerId       String
+  serviceRequestId String?
+  requirementId    String?
+  lastMessageText  String?
+  lastMessageAt    DateTime        @default(now())
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  serviceRequest   ServiceRequest? @relation(fields: [serviceRequestId], references: [id])
+  requirement      Requirement?    @relation(fields: [requirementId], references: [id])
+  messages         Message[]
+}
+
+model Message {
+  id             String       @id @default(uuid())
+  conversationId String
+  senderId       String
+  content        String
+  isRead         Boolean      @default(false)
+  attachmentUrl  String?
+  createdAt      DateTime     @default(now())
+
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender         User         @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+}
+
+model Review {
+  id                String          @id @default(uuid())
+  serviceRequestId  String          @unique
+  residentId        String
+  providerProfileId String
+  rating            Int             // 1 to 5
+  comment           String
+  photoUrl          String?
+  reviewerFirstName String          // Privacy rule: first name only
+  reviewerBlock     String          // Privacy rule: block only
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  serviceRequest    ServiceRequest  @relation(fields: [serviceRequestId], references: [id], onDelete: Cascade)
+  resident          User            @relation("ResidentReviews", fields: [residentId], references: [id], onDelete: Cascade)
+  providerProfile   ProviderProfile @relation(fields: [providerProfileId], references: [id], onDelete: Cascade)
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  type      String   // SERVICE_REQUEST, REQUEST_STATUS_CHANGE, REVIEW_RECEIVED, PROVIDER_APPROVAL, LISTING_APPROVAL, REQUIREMENT_UPDATE
+  title     String
+  message   String
+  link      String?
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model NotificationPreference {
+  id              String   @id @default(uuid())
+  userId          String   @unique
+  pushEnabled     Boolean  @default(true)
+  smsEnabled      Boolean  @default(false)
+  whatsappEnabled Boolean  @default(false)
+  emailEnabled    Boolean  @default(true)
+
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Report {
+  id              String   @id @default(uuid())
+  reporterId      String
+  targetType      String   // LISTING, REVIEW, PROVIDER, REQUIREMENT
+  targetId        String
+  reason          String
+  notes           String?
+  status          String   @default("PENDING") // PENDING, INVESTIGATING, RESOLVED, DISMISSED
+  resolutionNotes String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  reporter        User     @relation("ReporterReports", fields: [reporterId], references: [id], onDelete: Cascade)
+}
+
+model AdminApproval {
+  id         String   @id @default(uuid())
+  targetType String   // PROVIDER_PROFILE, SERVICE_LISTING, REQUIREMENT
+  targetId   String
+  adminId    String
+  decision   String   // APPROVED, REJECTED
+  reason     String?
+  createdAt  DateTime @default(now())
+
+  admin      User     @relation("AdminApprover", fields: [adminId], references: [id], onDelete: Cascade)
+}

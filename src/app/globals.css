@@ -1,0 +1,97 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap');
+
+:root {
+  --primary-font: 'Plus Jakarta Sans', sans-serif;
+}
+
+body {
+  font-family: var(--primary-font);
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Festival theme styling */
+.festival-theme {
+  --tw-bg-opacity: 1;
+  background-color: #4a0419 !important;
+  color: #fef3c7 !important;
+}
+
+.festival-theme .card-festive {
+  background-color: #5c0921;
+  border-color: rgba(234, 179, 8, 0.3);
+  box-shadow: 0 10px 25px -5px rgba(136, 19, 55, 0.4);
+}
+
+/* Ken Burns subtle zoom */
+@keyframes kenburns {
+  0% {
+    transform: scale(1) translate(0, 0);
+  }
+  50% {
+    transform: scale(1.06) translate(-1%, -1%);
+  }
+  100% {
+    transform: scale(1) translate(0, 0);
+  }
+}
+
+.animate-ken-burns {
+  animation: kenburns 24s ease-in-out infinite alternate;
+}
+
+/* Cloud drift */
+@keyframes cloudDrift {
+  0% {
+    transform: translateX(-10%);
+  }
+  100% {
+    transform: translateX(110%);
+  }
+}
+
+.animate-cloud-drift {
+  animation: cloudDrift 45s linear infinite;
+}
+
+/* Window illumination pulse */
+@keyframes windowGlow {
+  0%, 100% {
+    opacity: 0.65;
+    filter: drop-shadow(0 0 6px rgba(251, 191, 36, 0.6));
+  }
+  50% {
+    opacity: 0.95;
+    filter: drop-shadow(0 0 12px rgba(251, 191, 36, 0.9));
+  }
+}
+
+.animate-window-glow {
+  animation: windowGlow 4s ease-in-out infinite;
+}
+
+/* First load reveal */
+@keyframes heroReveal {
+  0% {
+    opacity: 0;
+    transform: translateY(20px) scale(0.98);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.animate-hero-reveal {
+  animation: heroReveal 1.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Rangoli divider styling */
+.rangoli-divider {
+  background-image: radial-gradient(circle, #eab308 1.5px, transparent 1.5px);
+  background-size: 16px 16px;
+}
