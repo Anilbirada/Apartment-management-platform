@@ -4,18 +4,25 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { translations, Language, Translations } from '@/lib/i18n';
 import { themeTokens, ThemeMode } from '@/lib/theme';
 
+export type RoleType = 'RESIDENT' | 'PROVIDER' | 'MANAGEMENT' | 'BUSINESS' | 'ADMIN';
+
 export interface User {
   id: string;
   email: string;
   name: string;
-  role: 'RESIDENT' | 'PROVIDER' | 'MANAGEMENT' | 'ADMIN';
+  role: RoleType;
   avatar?: string;
   phone?: string;
+  status?: string;
   isVerified: boolean;
+  communityId?: string;
   community?: any;
+  apartment?: any;
   residentProfile?: any;
   providerProfile?: any;
+  businessProfile?: any;
   communityMembers?: any[];
+  subscriptions?: any[];
 }
 
 interface AppContextType {
@@ -29,7 +36,7 @@ interface AppContextType {
   setTheme: (theme: ThemeMode) => void;
   login: (token: string, user: User) => void;
   logout: () => Promise<void>;
-  switchRole: (role: 'RESIDENT' | 'PROVIDER' | 'MANAGEMENT' | 'ADMIN') => Promise<void>;
+  switchRole: (role: RoleType) => Promise<void>;
   refreshUser: () => Promise<void>;
   refreshNotifications: () => Promise<void>;
 }
@@ -92,11 +99,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setUser(data.user);
         refreshNotifications();
       } else {
-        // If not logged in, auto log in as sample resident for seamless immediate experience
-        await switchRole('RESIDENT');
+        // Public visitor mode: user remains null without forced authentication
+        setUser(null);
       }
     } catch (e) {
       console.error('Failed to fetch current user', e);
+      setUser(null);
     } finally {
       setLoading(false);
     }
@@ -129,7 +137,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const switchRole = async (targetRole: 'RESIDENT' | 'PROVIDER' | 'MANAGEMENT' | 'ADMIN') => {
+  const switchRole = async (targetRole: RoleType) => {
     try {
       setLoading(true);
       const res = await fetch('/api/v1/auth/switch-role', {

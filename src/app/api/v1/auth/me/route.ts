@@ -13,15 +13,18 @@ export async function GET(req: NextRequest) {
       user: {
         id: user.id,
         email: user.email,
+        phone: user.phone,
         name: user.name,
         role: user.role,
         avatar: user.avatar,
-        phone: user.phone,
+        status: user.status,
         isVerified: user.isVerified,
         community: user.community,
         residentProfile: user.residentProfile,
         providerProfile: user.providerProfile,
-        communityMembers: user.communityMembers
+        businessProfile: user.businessProfile,
+        communityMembers: user.communityMembers,
+        subscriptions: user.subscriptions
       }
     });
   } catch (error: any) {

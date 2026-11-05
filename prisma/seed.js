@@ -4,9 +4,22 @@ const bcrypt = require('bcryptjs');
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('Seeding Apartment Management database...');
+  console.log('Seeding Enterprise Apartment Management & Marketplace database...');
 
-  // Clean existing data
+  // Clean existing data in reverse relational order
+  await prisma.visitAuditLog.deleteMany();
+  await prisma.providerVisit.deleteMany();
+  await prisma.apartmentGate.deleteMany();
+  await prisma.paymentTransaction.deleteMany();
+  await prisma.businessCampaign.deleteMany();
+  await prisma.localBusiness.deleteMany();
+  await prisma.subscription.deleteMany();
+  await prisma.subscriptionPlan.deleteMany();
+  await prisma.providerServiceArea.deleteMany();
+  await prisma.residentInvitation.deleteMany();
+  await prisma.residentApplication.deleteMany();
+  await prisma.apartmentUnit.deleteMany();
+  await prisma.apartmentBlock.deleteMany();
   await prisma.adminApproval.deleteMany();
   await prisma.report.deleteMany();
   await prisma.notificationPreference.deleteMany();
@@ -32,8 +45,8 @@ async function main() {
   const salt = await bcrypt.genSalt(10);
   const passwordHash = await bcrypt.hash('Password123!', salt);
 
-  // 1. Create Community
-  const community = await prisma.community.create({
+  // 1. Create Multiple Apartment Communities
+  const community1 = await prisma.community.create({
     data: {
       name: 'Palm Heights Luxury Residences',
       code: 'PALM-BLR-01',
@@ -44,6 +57,11 @@ async function main() {
       totalBlocks: 4,
       totalFlats: 280,
       heroImage: 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=1600&q=80',
+      status: 'ACTIVE',
+      onboardingMode: 'BOTH',
+      contactPerson: 'Sunita Deshmukh',
+      contactPhone: '+91 98450 11002',
+      contactEmail: 'manager@palmheights.com',
       noticesJson: JSON.stringify([
         {
           id: 'not-1',
@@ -73,51 +91,156 @@ async function main() {
     }
   });
 
-  console.log('Community created:', community.name);
+  const community2 = await prisma.community.create({
+    data: {
+      name: 'Green Glen Elite Enclave',
+      code: 'GGEE-BLR-02',
+      address: 'Green Glen Layout, Bellandur Lake Road',
+      city: 'Bengaluru',
+      state: 'Karnataka',
+      postalCode: '560103',
+      totalBlocks: 2,
+      totalFlats: 160,
+      heroImage: 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&w=1600&q=80',
+      status: 'ACTIVE',
+      onboardingMode: 'BOTH',
+      contactPerson: 'Kishore Nambiar',
+      contactPhone: '+91 98450 11099',
+      contactEmail: 'admin@greenglen.org'
+    }
+  });
 
-  // 2. Create Users (Admin, Management, Residents, Providers)
+  const community3 = await prisma.community.create({
+    data: {
+      name: 'Silver Oak Residences',
+      code: 'SILVER-HSR-03',
+      address: '27th Main, Sector 1, HSR Layout',
+      city: 'Bengaluru',
+      state: 'Karnataka',
+      postalCode: '560102',
+      totalBlocks: 3,
+      totalFlats: 210,
+      heroImage: 'https://images.unsplash.com/photo-1574362848149-11496d93a7c7?auto=format&fit=crop&w=1600&q=80',
+      status: 'ACTIVE',
+      onboardingMode: 'BOTH',
+      contactPerson: 'Meera Sen',
+      contactPhone: '+91 98450 11098',
+      contactEmail: 'estate@silveroak.in'
+    }
+  });
+
+  console.log('Multiple communities created:', community1.name, community2.name, community3.name);
+
+  // 2. Create Blocks and Units for Palm Heights
+  const blocksData = [
+    { name: 'Tower A', code: 'TOW-A', totalFloors: 14 },
+    { name: 'Tower B', code: 'TOW-B', totalFloors: 14 },
+    { name: 'Tower C', code: 'TOW-C', totalFloors: 14 },
+    { name: 'Tower D', code: 'TOW-D', totalFloors: 14 },
+  ];
+
+  const createdBlocks = [];
+  for (const b of blocksData) {
+    const blk = await prisma.apartmentBlock.create({
+      data: {
+        communityId: community1.id,
+        name: b.name,
+        code: b.code,
+        totalFloors: b.totalFloors
+      }
+    });
+    createdBlocks.push(blk);
+
+    // Seed sample units
+    const unitNumbers = ['101', '102', '201', '202', '304', '402', '1202'];
+    for (const uNum of unitNumbers) {
+      await prisma.apartmentUnit.create({
+        data: {
+          blockId: blk.id,
+          floorNumber: parseInt(uNum[0], 10) || 1,
+          unitNumber: uNum,
+          residentType: uNum === '402' ? 'VACANT' : 'OWNER',
+          status: uNum === '402' ? 'VACANT' : 'OCCUPIED'
+        }
+      });
+    }
+  }
+
+  // 3. Create Security Gates for QR Attendance
+  const gateA = await prisma.apartmentGate.create({
+    data: {
+      communityId: community1.id,
+      gateName: 'Main Security Gate A',
+      gateCode: 'GATE-PALM-01',
+      qrSecret: 'secret_palm_gate_a_2026',
+      isActive: true
+    }
+  });
+
+  const gateB = await prisma.apartmentGate.create({
+    data: {
+      communityId: community1.id,
+      gateName: 'North Service & Delivery Gate',
+      gateCode: 'GATE-PALM-02',
+      qrSecret: 'secret_palm_gate_b_2026',
+      isActive: true
+    }
+  });
+
+  console.log('Blocks, units, and security gates created.');
+
+  // 4. Create Users across 5 Roles
+  // Role 5: Platform Admin
   const adminUser = await prisma.user.create({
     data: {
       email: 'admin@palmheights.com',
       passwordHash,
       name: 'Vikramaditya Rao',
-      phone: '+91 98450 11001',
+      phone: '+919845011001',
       role: 'ADMIN',
       isVerified: true,
       status: 'ACTIVE',
-      communityId: community.id,
+      communityId: community1.id,
       avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=250&q=80'
     }
   });
 
+  // Role 2: Society Management
   const managerUser = await prisma.user.create({
     data: {
       email: 'manager@palmheights.com',
       passwordHash,
       name: 'Sunita Deshmukh',
-      phone: '+91 98450 11002',
+      phone: '+919845011002',
       role: 'MANAGEMENT',
       isVerified: true,
       status: 'ACTIVE',
-      communityId: community.id,
+      communityId: community1.id,
       avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=250&q=80'
     }
   });
 
+  // Connect manager to community1
+  await prisma.community.update({
+    where: { id: community1.id },
+    data: { managerId: managerUser.id }
+  });
+
+  // Role 1: Apartment Residents
   const resident1 = await prisma.user.create({
     data: {
       email: 'rahul.sharma@gmail.com',
       passwordHash,
       name: 'Rahul Sharma',
-      phone: '+91 98860 33441',
+      phone: '+919886033441',
       role: 'RESIDENT',
       isVerified: true,
       status: 'ACTIVE',
-      communityId: community.id,
+      communityId: community1.id,
       avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=250&q=80',
       residentProfile: {
         create: {
-          alternatePhone: '+91 98860 33442',
+          alternatePhone: '+919886033442',
           familyMembersCount: 4,
           intercomNumber: '2304',
           bio: 'Tech lead living in Tower B with family. Avid badminton player.'
@@ -125,7 +248,7 @@ async function main() {
       },
       communityMembers: {
         create: {
-          communityId: community.id,
+          communityId: community1.id,
           block: 'Tower B',
           flatNumber: '304',
           residentType: 'OWNER',
@@ -140,15 +263,15 @@ async function main() {
       email: 'priya.patel@gmail.com',
       passwordHash,
       name: 'Priya Patel',
-      phone: '+91 97400 55662',
+      phone: '+919740055662',
       role: 'RESIDENT',
       isVerified: true,
       status: 'ACTIVE',
-      communityId: community.id,
+      communityId: community1.id,
       avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=250&q=80',
       residentProfile: {
         create: {
-          alternatePhone: '+91 97400 55663',
+          alternatePhone: '+919740055663',
           familyMembersCount: 3,
           intercomNumber: '11202',
           bio: 'Product designer in Tower A. Plant parent & baker.'
@@ -156,7 +279,7 @@ async function main() {
       },
       communityMembers: {
         create: {
-          communityId: community.id,
+          communityId: community1.id,
           block: 'Tower A',
           flatNumber: '1202',
           residentType: 'OWNER',
@@ -166,7 +289,113 @@ async function main() {
     }
   });
 
-  // 3. Create Service Categories & Subcategories (6 client groups)
+  // Resident pending approval (self-registration)
+  const pendingResidentUser = await prisma.user.create({
+    data: {
+      email: 'anand.kulkarni@gmail.com',
+      passwordHash,
+      name: 'Anand Kulkarni',
+      phone: '+919845099887',
+      role: 'RESIDENT',
+      isVerified: false,
+      status: 'PENDING',
+      communityId: community1.id,
+      avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=250&q=80'
+    }
+  });
+
+  await prisma.residentApplication.create({
+    data: {
+      communityId: community1.id,
+      userId: pendingResidentUser.id,
+      block: 'Tower C',
+      flatNumber: '402',
+      residentType: 'TENANT',
+      proofDocumentUrl: 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?auto=format&fit=crop&w=600&q=80',
+      status: 'PENDING'
+    }
+  });
+
+  // Role 4: Local Businesses
+  const businessUser1 = await prisma.user.create({
+    data: {
+      email: 'owner@namastefresh.com',
+      passwordHash,
+      name: 'Rohan Singhal',
+      phone: '+919845077112',
+      role: 'BUSINESS',
+      isVerified: true,
+      status: 'ACTIVE',
+      communityId: community1.id,
+      avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=250&q=80'
+    }
+  });
+
+  const business1 = await prisma.localBusiness.create({
+    data: {
+      userId: businessUser1.id,
+      businessName: 'Namaste Fresh Supermarket & Organics',
+      registrationNumber: 'GSTIN29AABCS1429B1Z8',
+      category: 'GROCERY',
+      description: 'Neighborhood supermarket offering hydroponic vegetables, dairy, pulses, farm eggs, and doorstep delivery within 30 minutes.',
+      logoUrl: 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=400&q=80',
+      bannerUrl: 'https://images.unsplash.com/photo-1578916171728-46686eac8d58?auto=format&fit=crop&w=1200&q=80',
+      address: 'Shop 12-14, Green Glen Commercial Complex, Bellandur',
+      city: 'Bengaluru',
+      state: 'Karnataka',
+      postalCode: '560103',
+      contactPhone: '+919845077112',
+      contactEmail: 'orders@namastefresh.com',
+      website: 'https://namastefresh.local',
+      operatingAreasJson: JSON.stringify(['Bellandur', 'HSR Layout', 'Outer Ring Road', 'Haralur']),
+      targetApartments: JSON.stringify([community1.id, community2.id]),
+      isApproved: true,
+      verificationStatus: 'APPROVED',
+      status: 'ACTIVE'
+    }
+  });
+
+  const businessUser2 = await prisma.user.create({
+    data: {
+      email: 'care@apollolocal.com',
+      passwordHash,
+      name: 'Dr. Shalini Hegde',
+      phone: '+919845077223',
+      role: 'BUSINESS',
+      isVerified: true,
+      status: 'ACTIVE',
+      communityId: community1.id,
+      avatar: 'https://images.unsplash.com/photo-1594824813511-20700889c47e?auto=format&fit=crop&w=250&q=80'
+    }
+  });
+
+  const business2 = await prisma.localBusiness.create({
+    data: {
+      userId: businessUser2.id,
+      businessName: 'Apollo 24x7 Neighborhood Pharmacy',
+      registrationNumber: 'KA-DRUG-LIC-89412',
+      category: 'PHARMACY',
+      description: 'Licensed community pharmacy offering prescription medications, baby wellness essentials, pulse oximeters, and doorstep cold-chain delivery.',
+      logoUrl: 'https://images.unsplash.com/photo-1586015555751-63bb77f4322a?auto=format&fit=crop&w=400&q=80',
+      bannerUrl: 'https://images.unsplash.com/photo-1587854692152-cbe660dbde88?auto=format&fit=crop&w=1200&q=80',
+      address: 'Ground Floor, Bellandur Lake Road, Opp. Palm Heights Gate 2',
+      city: 'Bengaluru',
+      state: 'Karnataka',
+      postalCode: '560103',
+      contactPhone: '+919845077223',
+      contactEmail: 'care@apollolocal.com',
+      website: 'https://apollopharmacy.in',
+      operatingAreasJson: JSON.stringify(['Bellandur', 'Outer Ring Road']),
+      targetApartments: JSON.stringify([community1.id]),
+      isApproved: true,
+      verificationStatus: 'APPROVED',
+      status: 'ACTIVE'
+    }
+  });
+
+  console.log('Businesses created:', business1.businessName, business2.businessName);
+
+  // 5. Create Service Categories & Subcategories
   const categoriesData = [
     {
       name: 'Home Maintenance',
@@ -301,14 +530,12 @@ async function main() {
     }
   }
 
-  console.log('Categories and subcategories seeded.');
-
-  // 4. Create Service Providers with Profiles, Documents, Availability & Listings
+  // 6. Create Service Providers with Profiles, Geographic Coverage & Subscriptions
   const providersData = [
     {
       email: 'ramesh.plumber@gmail.com',
       name: 'Ramesh Kumar',
-      phone: '+91 98451 22334',
+      phone: '+919845122334',
       businessName: 'Ramesh Express Plumbing & Sanitary Solutions',
       experienceYears: 8,
       serviceArea: 'Palm Heights, Bellandur, Haralur & Green Glen',
@@ -320,7 +547,6 @@ async function main() {
       availableToday: true,
       isApproved: true,
       verificationStatus: 'APPROVED',
-      approvalNotes: 'Aadhaar verified. Police clearance certificate verified by society security on Jan 2026.',
       avatar: 'https://images.unsplash.com/photo-1540569014015-19a7be504e3a?auto=format&fit=crop&w=300&q=80',
       categorySlug: 'home-maintenance',
       subCategorySlug: 'plumber',
@@ -328,6 +554,11 @@ async function main() {
       desc: 'Complete sanitary diagnostics, tap spindle change, wall mixer fixes, kitchen sink trap cleaning, flushing cistern repair and concealed pipe leak detection with electronic sensors.',
       priceType: 'STARTING_PRICE',
       price: 299,
+      localities: [
+        { locality: 'Bellandur', postalCode: '560103', radius: 5.0 },
+        { locality: 'HSR Layout', postalCode: '560102', radius: 6.0 },
+        { locality: 'Electronic City', postalCode: '560100', radius: 8.0 }
+      ],
       beforeAfterPhotos: [
         'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&w=600&q=80',
         'https://images.unsplash.com/photo-1585704032915-c3400ca199e7?auto=format&fit=crop&w=600&q=80'
@@ -336,7 +567,7 @@ async function main() {
     {
       email: 'suresh.electrician@gmail.com',
       name: 'Suresh Varma',
-      phone: '+91 98452 33445',
+      phone: '+919845233445',
       businessName: 'Sparkle Electrical Works & Home Safety',
       experienceYears: 6,
       serviceArea: 'Palm Heights Campus & Bellandur Lake Rd',
@@ -348,7 +579,6 @@ async function main() {
       availableToday: true,
       isApproved: true,
       verificationStatus: 'APPROVED',
-      approvalNotes: 'Wireman license and government ID verified.',
       avatar: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=300&q=80',
       categorySlug: 'home-maintenance',
       subCategorySlug: 'electrician',
@@ -356,6 +586,10 @@ async function main() {
       desc: 'Expert switchboard wiring, heavy appliance MCB replacement, chandelier hanging, smart switch installation and short-circuit diagnosis with multimeter.',
       priceType: 'STARTING_PRICE',
       price: 249,
+      localities: [
+        { locality: 'Bellandur', postalCode: '560103', radius: 4.0 },
+        { locality: 'Green Glen Layout', postalCode: '560103', radius: 3.0 }
+      ],
       beforeAfterPhotos: [
         'https://images.unsplash.com/photo-1621905251189-08b45d6a269e?auto=format&fit=crop&w=600&q=80',
         'https://images.unsplash.com/photo-1558370781-d6196949e317?auto=format&fit=crop&w=600&q=80'
@@ -364,7 +598,7 @@ async function main() {
     {
       email: 'anita.cleaning@gmail.com',
       name: 'Anita Devi',
-      phone: '+91 98453 44556',
+      phone: '+919845344556',
       businessName: 'CleanHome Deep Cleaners & Sofa Spa',
       experienceYears: 5,
       serviceArea: 'Exclusive to Palm Heights Community',
@@ -376,7 +610,6 @@ async function main() {
       availableToday: true,
       isApproved: true,
       verificationStatus: 'APPROVED',
-      approvalNotes: 'Background checked with local police clearance on record.',
       avatar: 'https://images.unsplash.com/photo-1567532939604-b6b5b0db2604?auto=format&fit=crop&w=300&q=80',
       categorySlug: 'cleaning-housekeeping',
       subCategorySlug: 'deep-cleaning',
@@ -384,120 +617,17 @@ async function main() {
       desc: 'Intensive tile descaling, stainless steel polish, greasy chimney filter degreasing, glass balcony wipe down and deep carpet vacuuming with non-toxic solutions.',
       priceType: 'STARTING_PRICE',
       price: 499,
+      localities: [
+        { locality: 'Bellandur', postalCode: '560103', radius: 3.0 }
+      ],
       beforeAfterPhotos: [
-        'https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=600&q=80',
-        'https://images.unsplash.com/photo-1527515637462-cff94eecc1ac?auto=format&fit=crop&w=600&q=80'
+        'https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=600&q=80'
       ]
     },
     {
-      email: 'rajesh.carwash@gmail.com',
-      name: 'Rajesh Singh',
-      phone: '+91 98454 55667',
-      businessName: 'Shine Doorstep Basement Car Spa',
-      experienceYears: 4,
-      serviceArea: 'Palm Heights Basements B1 & B2',
-      bio: 'Eco-friendly waterless and minimal-water doorstep vehicle care specialist. Daily morning slot car wiping, monthly foam wash and tire gloss in your allocated parking bay.',
-      rating: 4.7,
-      reviewCount: 22,
-      completedJobsCount: 85,
-      startingPrice: 350,
-      availableToday: true,
-      isApproved: true,
-      verificationStatus: 'APPROVED',
-      approvalNotes: 'Basement entry pass cleared by Palm Heights Security.',
-      avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=300&q=80',
-      categorySlug: 'vehicle',
-      subCategorySlug: 'car-washing',
-      title: 'Basement Doorstep Foam Wash & Interior Vacuum',
-      desc: 'Microfiber dual-bucket wash, wheel rim de-ironing, windshield rain repellent treatment and interior floor mat vacuuming directly at your basement parking slot.',
-      priceType: 'PER_VISIT',
-      price: 350,
-      beforeAfterPhotos: [
-        'https://images.unsplash.com/photo-1520340356584-f9917d1eea6f?auto=format&fit=crop&w=600&q=80'
-      ]
-    },
-    {
-      email: 'meena.cook@gmail.com',
-      name: 'Meena Subramaniam',
-      phone: '+91 98455 66778',
-      businessName: 'Homely Kitchen Delights',
-      experienceYears: 10,
-      serviceArea: 'Towers A, B, C & D',
-      bio: 'Experienced South and North Indian cook with 10 years experience serving families in gated societies. Clean, hygienic, punctual, and experts in healthy oil-controlled preparations.',
-      rating: 5.0,
-      reviewCount: 19,
-      completedJobsCount: 48,
-      startingPrice: 5000,
-      availableToday: false,
-      isApproved: true,
-      verificationStatus: 'APPROVED',
-      approvalNotes: 'Medical fitness test and society ID verified.',
-      avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=300&q=80',
-      categorySlug: 'household-personal',
-      subCategorySlug: 'cook',
-      title: 'Daily Home Cook for North & South Indian Meals',
-      desc: 'Breakfast, lunch and dinner meal prep for family of 3-5. Roti making, sabzis, dal tadka, sambar, rasam, curd rice and weekend special dishes.',
-      priceType: 'FIXED',
-      price: 6500,
-      beforeAfterPhotos: [
-        'https://images.unsplash.com/photo-1556910103-1c02745aae4d?auto=format&fit=crop&w=600&q=80'
-      ]
-    },
-    {
-      email: 'vijay.tutor@gmail.com',
-      name: 'Vijay Krishna (M.Sc)',
-      phone: '+91 98456 77889',
-      businessName: 'Apex Math & Physics Mentorship',
-      experienceYears: 7,
-      serviceArea: 'Palm Heights In-Person & Hybrid',
-      bio: 'Former FIITJEE faculty member teaching ICSE/CBSE Mathematics and Physics for grades 8 to 12. Focus on conceptual clarity, Olympiad preparation and board exam confidence.',
-      rating: 4.9,
-      reviewCount: 16,
-      completedJobsCount: 62,
-      startingPrice: 600,
-      availableToday: true,
-      isApproved: true,
-      verificationStatus: 'APPROVED',
-      approvalNotes: 'Educational degrees verified. Society resident reference verified.',
-      avatar: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&w=300&q=80',
-      categorySlug: 'education-skills',
-      subCategorySlug: 'home-tuition',
-      title: 'Class 8-12 Math & Physics Conceptual Tuition',
-      desc: 'Small batch (max 3 students) or 1-on-1 tutoring. Weekly chapter tests, board question bank solving and doubts cleared with real-life visual analogies.',
-      priceType: 'HOURLY',
-      price: 750,
-      beforeAfterPhotos: []
-    },
-    {
-      email: 'kavita.ca@gmail.com',
-      name: 'Kavita Rao, FCA',
-      phone: '+91 98457 88990',
-      businessName: 'Apex Tax & NRI Asset Advisory',
-      experienceYears: 9,
-      serviceArea: 'Palm Heights Residents & Pan-India',
-      bio: 'Fellow Chartered Accountant assisting salaried IT executives, NRI property owners and startup founders with ITR-2/3/4 filings, capital gains tax optimization and foreign stock compliance (ESOP/RSU).',
-      rating: 5.0,
-      reviewCount: 27,
-      completedJobsCount: 75,
-      startingPrice: 999,
-      availableToday: true,
-      isApproved: true,
-      verificationStatus: 'APPROVED',
-      approvalNotes: 'ICAI Membership No. 248911 verified.',
-      avatar: 'https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?auto=format&fit=crop&w=300&q=80',
-      categorySlug: 'professional',
-      subCategorySlug: 'ca-tax-gst',
-      title: 'ITR-2/3 Filing, Capital Gains & RSU Tax Consultation',
-      desc: 'Complete audit review of Form 26AS, AIS/TIS reconciliation, foreign equity income disclosure and advance tax computation with legal confidentiality.',
-      priceType: 'FIXED',
-      price: 1999,
-      beforeAfterPhotos: []
-    },
-    {
-      // Pending approval provider for testing admin queue
       email: 'sunil.carpenter@gmail.com',
       name: 'Sunil Sharma',
-      phone: '+91 98458 99001',
+      phone: '+919845899001',
       businessName: 'WoodCraft Modular Furniture Works',
       experienceYears: 5,
       serviceArea: 'Palm Heights & Surrounding Areas',
@@ -509,7 +639,6 @@ async function main() {
       availableToday: true,
       isApproved: false,
       verificationStatus: 'PENDING',
-      approvalNotes: 'Awaiting admin document inspection.',
       avatar: 'https://images.unsplash.com/photo-1501196354995-cbb51c65aaea?auto=format&fit=crop&w=300&q=80',
       categorySlug: 'home-maintenance',
       subCategorySlug: 'carpenter',
@@ -517,12 +646,14 @@ async function main() {
       desc: 'Fix squeaky hinges, realign soft-close drawers, install childproof latches, and repair dining chair frames.',
       priceType: 'STARTING_PRICE',
       price: 350,
+      localities: [
+        { locality: 'Bellandur', postalCode: '560103', radius: 5.0 }
+      ],
       beforeAfterPhotos: []
     }
   ];
 
   const createdProviders = [];
-
   for (const prov of providersData) {
     const user = await prisma.user.create({
       data: {
@@ -533,7 +664,7 @@ async function main() {
         role: 'PROVIDER',
         isVerified: prov.isApproved,
         status: 'ACTIVE',
-        communityId: community.id,
+        communityId: community1.id,
         avatar: prov.avatar,
         providerProfile: {
           create: {
@@ -548,7 +679,6 @@ async function main() {
             availableToday: prov.availableToday,
             isApproved: prov.isApproved,
             verificationStatus: prov.verificationStatus,
-            approvalNotes: prov.approvalNotes,
             idProofType: 'AADHAAR',
             idProofUrl: 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?auto=format&fit=crop&w=500&q=80',
             policeVerificationUrl: 'https://images.unsplash.com/photo-1450133064473-71024230f91b?auto=format&fit=crop&w=500&q=80',
@@ -560,30 +690,25 @@ async function main() {
     });
 
     createdProviders.push({ user, prov });
-
     const pProfile = user.providerProfile;
 
-    // Add sample verification documents
-    await prisma.providerDocument.createMany({
-      data: [
-        {
+    // Create Service Areas
+    for (const loc of prov.localities) {
+      await prisma.providerServiceArea.create({
+        data: {
           providerProfileId: pProfile.id,
-          docType: 'ID_PROOF',
-          fileUrl: 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?auto=format&fit=crop&w=500&q=80',
-          fileName: 'Govt_Aadhaar_Card_Verified.pdf',
-          status: prov.isApproved ? 'APPROVED' : 'PENDING'
-        },
-        {
-          providerProfileId: pProfile.id,
-          docType: 'POLICE_VERIFICATION',
-          fileUrl: 'https://images.unsplash.com/photo-1450133064473-71024230f91b?auto=format&fit=crop&w=500&q=80',
-          fileName: 'Karnataka_Police_Clearance_2026.pdf',
-          status: prov.isApproved ? 'APPROVED' : 'PENDING'
+          country: 'India',
+          state: 'Karnataka',
+          city: 'Bengaluru',
+          locality: loc.locality,
+          postalCode: loc.postalCode,
+          serviceRadiusKm: loc.radius,
+          communityId: community1.id
         }
-      ]
-    });
+      });
+    }
 
-    // Add Service Availability (Monday through Saturday, 9 AM - 7 PM)
+    // Availability Monday - Saturday
     for (let day = 1; day <= 6; day++) {
       await prisma.serviceAvailability.create({
         data: {
@@ -596,10 +721,9 @@ async function main() {
       });
     }
 
-    // Add Service Listing
+    // Listing
     const category = categoryMap[prov.categorySlug];
     const subCategory = subCategoryMap[prov.subCategorySlug];
-
     if (category) {
       await prisma.serviceListing.create({
         data: {
@@ -612,21 +736,176 @@ async function main() {
           price: prov.price,
           visibility: 'APARTMENT_ONLY',
           status: prov.isApproved ? 'PUBLISHED' : 'PENDING_APPROVAL',
-          approvalNotes: prov.isApproved ? 'Approved by Admin Vikramaditya Rao' : null,
           photosJson: JSON.stringify(prov.beforeAfterPhotos)
         }
       });
     }
   }
 
-  console.log('Providers, listings, documents & availability seeded.');
+  // 7. Seed Monetization: Subscription Plans, Subscriptions & Transactions
+  const planProviderFree = await prisma.subscriptionPlan.create({
+    data: {
+      name: 'Provider Starter',
+      targetRole: 'PROVIDER',
+      planType: 'FREE',
+      priceInr: 0,
+      billingCycle: 'MONTHLY',
+      description: 'Free basic registration, standard listing in 1 apartment community, standard lead notifications.',
+      featureEntitlementsJson: JSON.stringify({ maxApartments: 1, priorityBadge: false, leadCommissionPercent: 0 }),
+      isActive: true,
+      sortOrder: 1
+    }
+  });
 
-  // 5. Seed Real Service Requests with full lifecycle
+  const planProviderPaid = await prisma.subscriptionPlan.create({
+    data: {
+      name: 'Provider Pro Gold',
+      targetRole: 'PROVIDER',
+      planType: 'PAID',
+      priceInr: 499,
+      billingCycle: 'MONTHLY',
+      description: 'Enhanced visibility badge, coverage in up to 5 apartment communities, priority leads, instant SMS dispatch.',
+      featureEntitlementsJson: JSON.stringify({ maxApartments: 5, priorityBadge: true, instantSms: true }),
+      isActive: true,
+      sortOrder: 2
+    }
+  });
+
+  const planBusinessFree = await prisma.subscriptionPlan.create({
+    data: {
+      name: 'Business Directory Free',
+      targetRole: 'LOCAL_BUSINESS',
+      planType: 'FREE',
+      priceInr: 0,
+      billingCycle: 'MONTHLY',
+      description: 'Basic business directory listing, contact details, 1 targeted society.',
+      featureEntitlementsJson: JSON.stringify({ maxActiveCampaigns: 0, targetSocieties: 1 }),
+      isActive: true,
+      sortOrder: 3
+    }
+  });
+
+  const planBusinessPaid = await prisma.subscriptionPlan.create({
+    data: {
+      name: 'Business Growth Prime',
+      targetRole: 'LOCAL_BUSINESS',
+      planType: 'PAID',
+      priceInr: 1499,
+      billingCycle: 'MONTHLY',
+      description: 'Up to 3 active promotional banner campaigns, targeting across 5 communities, resident deal highlights, real-time analytics.',
+      featureEntitlementsJson: JSON.stringify({ maxActiveCampaigns: 3, targetSocieties: 5, featuredDeals: true }),
+      isActive: true,
+      sortOrder: 4
+    }
+  });
+
+  console.log('Subscription plans created.');
+
+  // Create active subscription for Ramesh (Provider Pro)
   const ramesh = createdProviders.find(p => p.prov.email === 'ramesh.plumber@gmail.com');
   const suresh = createdProviders.find(p => p.prov.email === 'suresh.electrician@gmail.com');
   const anita = createdProviders.find(p => p.prov.email === 'anita.cleaning@gmail.com');
 
-  // Request 1: Completed & Reviewed
+  const rameshSub = await prisma.subscription.create({
+    data: {
+      userId: ramesh.user.id,
+      planId: planProviderPaid.id,
+      targetRole: 'PROVIDER',
+      status: 'ACTIVE',
+      currentPeriodStart: new Date(Date.now() - 1000 * 3600 * 24 * 5),
+      currentPeriodEnd: new Date(Date.now() + 1000 * 3600 * 24 * 25),
+      autoRenew: true
+    }
+  });
+
+  const txn1 = await prisma.paymentTransaction.create({
+    data: {
+      transactionNumber: 'TXN-2026-0001',
+      userId: ramesh.user.id,
+      subscriptionId: rameshSub.id,
+      amountInr: 499,
+      currency: 'INR',
+      status: 'SUCCESS',
+      paymentMethod: 'UPI',
+      gatewayReference: 'pay_rzp_test_88194a',
+      gatewaySignature: 'sig_verified_hash_992'
+    }
+  });
+
+  // Create active subscription for Namaste Fresh (Business Growth Prime)
+  const namasteSub = await prisma.subscription.create({
+    data: {
+      userId: businessUser1.id,
+      planId: planBusinessPaid.id,
+      targetRole: 'LOCAL_BUSINESS',
+      status: 'ACTIVE',
+      currentPeriodStart: new Date(Date.now() - 1000 * 3600 * 24 * 10),
+      currentPeriodEnd: new Date(Date.now() + 1000 * 3600 * 24 * 20),
+      autoRenew: true
+    }
+  });
+
+  const txn2 = await prisma.paymentTransaction.create({
+    data: {
+      transactionNumber: 'TXN-2026-0002',
+      userId: businessUser1.id,
+      subscriptionId: namasteSub.id,
+      amountInr: 1499,
+      currency: 'INR',
+      status: 'SUCCESS',
+      paymentMethod: 'NETBANKING',
+      gatewayReference: 'pay_rzp_test_99214b',
+      gatewaySignature: 'sig_verified_hash_881'
+    }
+  });
+
+  console.log('Subscriptions & transactions seeded:', txn1.transactionNumber, txn2.transactionNumber);
+
+  // 8. Create Advertising Campaigns (Role 4 & Resident free view)
+  const campaign1 = await prisma.businessCampaign.create({
+    data: {
+      businessId: business1.id,
+      title: 'Fresh Organic Farm Harvest - 20% Off for Palm Heights',
+      description: 'Hydroponic crisp spinach, vine-ripened tomatoes, and A2 Desi cow milk. Delivered directly to your tower lobby in 20 minutes.',
+      bannerUrl: 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=1200&q=80',
+      targetCategory: 'GROCERY',
+      targetCity: 'Bengaluru',
+      targetLocalitiesJson: JSON.stringify(['Bellandur', 'Outer Ring Road']),
+      targetApartmentsJson: JSON.stringify([community1.id]),
+      startDate: new Date(Date.now() - 1000 * 3600 * 24 * 2),
+      endDate: new Date(Date.now() + 1000 * 3600 * 24 * 12),
+      status: 'ACTIVE',
+      impressionsCount: 248,
+      clicksCount: 39,
+      approvedById: adminUser.id,
+      approvedAt: new Date(Date.now() - 1000 * 3600 * 24 * 2)
+    }
+  });
+
+  const campaign2 = await prisma.businessCampaign.create({
+    data: {
+      businessId: business2.id,
+      title: 'Free Essential Medicine Delivery & Health Checkup Voucher',
+      description: 'Prescription medicines delivered to your doorstep within 30 minutes. Flat 15% off on baby care & wellness supplements.',
+      bannerUrl: 'https://images.unsplash.com/photo-1587854692152-cbe660dbde88?auto=format&fit=crop&w=1200&q=80',
+      targetCategory: 'PHARMACY',
+      targetCity: 'Bengaluru',
+      targetLocalitiesJson: JSON.stringify(['Bellandur']),
+      targetApartmentsJson: JSON.stringify([community1.id, community2.id]),
+      startDate: new Date(Date.now() - 1000 * 3600 * 24 * 1),
+      endDate: new Date(Date.now() + 1000 * 3600 * 24 * 14),
+      status: 'ACTIVE',
+      impressionsCount: 165,
+      clicksCount: 22,
+      approvedById: adminUser.id,
+      approvedAt: new Date(Date.now() - 1000 * 3600 * 24 * 1)
+    }
+  });
+
+  console.log('Advertising campaigns seeded:', campaign1.title);
+
+  // 9. Create Real Service Requests with full QR Entry & Exit attendance
+  // Request 1: Completed & Reviewed with recorded Entry and Exit
   const req1 = await prisma.serviceRequest.create({
     data: {
       requestNumber: 'REQ-2026-0041',
@@ -650,13 +929,38 @@ async function main() {
       { serviceRequestId: req1.id, fromStatus: null, toStatus: 'REQUESTED', note: 'Request initiated by resident Rahul Sharma', changedById: resident1.id },
       { serviceRequestId: req1.id, fromStatus: 'REQUESTED', toStatus: 'ACCEPTED', note: 'Accepted by Ramesh Express Plumbing', changedById: ramesh.user.id },
       { serviceRequestId: req1.id, fromStatus: 'ACCEPTED', toStatus: 'VISIT_SCHEDULED', note: 'Visit scheduled for 10:30 AM Nov 01', changedById: ramesh.user.id },
-      { serviceRequestId: req1.id, fromStatus: 'VISIT_SCHEDULED', toStatus: 'IN_PROGRESS', note: 'Ramesh checked in with security gate pass', changedById: ramesh.user.id },
+      { serviceRequestId: req1.id, fromStatus: 'VISIT_SCHEDULED', toStatus: 'IN_PROGRESS', note: 'Ramesh checked in via QR scanner at Gate A', changedById: ramesh.user.id },
       { serviceRequestId: req1.id, fromStatus: 'IN_PROGRESS', toStatus: 'COMPLETED', note: 'Job completed. Washer replaced.', changedById: ramesh.user.id },
       { serviceRequestId: req1.id, fromStatus: 'COMPLETED', toStatus: 'REVIEWED', note: 'Resident posted 5-star review', changedById: resident1.id }
     ]
   });
 
-  // Create Review adhering strictly to privacy rule: First Name + Block only!
+  // Recorded QR Entry & Exit Visit for req1
+  const entryDate1 = new Date(Date.now() - 1000 * 3600 * 48 + 1000 * 60 * 15);
+  const exitDate1 = new Date(Date.now() - 1000 * 3600 * 48 + 1000 * 60 * 58);
+  const visit1 = await prisma.providerVisit.create({
+    data: {
+      serviceRequestId: req1.id,
+      providerProfileId: ramesh.user.providerProfile.id,
+      communityId: community1.id,
+      gateId: gateA.id,
+      entryTimestamp: entryDate1,
+      exitTimestamp: exitDate1,
+      durationMinutes: 43,
+      visitStatus: 'EXITED',
+      entryQrToken: 'qr_token_entry_mock_req41',
+      exitQrToken: 'qr_token_exit_mock_req41'
+    }
+  });
+
+  await prisma.visitAuditLog.createMany({
+    data: [
+      { visitId: visit1.id, action: 'ENTRY_RECORDED', performedById: ramesh.user.id, reason: 'Valid QR scan at Main Security Gate A', timestamp: entryDate1 },
+      { visitId: visit1.id, action: 'EXIT_RECORDED', performedById: ramesh.user.id, reason: 'Valid QR scan at Main Security Gate A upon departure', timestamp: exitDate1 }
+    ]
+  });
+
+  // Review for req1
   await prisma.review.create({
     data: {
       serviceRequestId: req1.id,
@@ -670,7 +974,7 @@ async function main() {
     }
   });
 
-  // Request 2: In Progress
+  // Request 2: In Progress - Currently Inside Apartment!
   const req2 = await prisma.serviceRequest.create({
     data: {
       requestNumber: 'REQ-2026-0042',
@@ -678,7 +982,7 @@ async function main() {
       providerProfileId: suresh.user.providerProfile.id,
       categoryName: 'Home Maintenance',
       subCategoryName: 'Electrician',
-      preferredDate: '2026-11-02',
+      preferredDate: '2026-11-03',
       preferredTimeSlot: '02:00 PM - 04:00 PM',
       block: 'Tower A',
       flatNumber: '1202',
@@ -692,45 +996,42 @@ async function main() {
       { serviceRequestId: req2.id, fromStatus: null, toStatus: 'REQUESTED', note: 'Request placed by resident Priya Patel', changedById: resident2.id },
       { serviceRequestId: req2.id, fromStatus: 'REQUESTED', toStatus: 'ACCEPTED', note: 'Suresh Varma accepted the job', changedById: suresh.user.id },
       { serviceRequestId: req2.id, fromStatus: 'ACCEPTED', toStatus: 'VISIT_SCHEDULED', note: 'Visit confirmed for 2:30 PM today', changedById: suresh.user.id },
-      { serviceRequestId: req2.id, fromStatus: 'VISIT_SCHEDULED', toStatus: 'IN_PROGRESS', note: 'Provider arrived at Tower A 1202', changedById: suresh.user.id }
+      { serviceRequestId: req2.id, fromStatus: 'VISIT_SCHEDULED', toStatus: 'IN_PROGRESS', note: 'Scanned QR Gate A at 2:28 PM. Entered campus.', changedById: suresh.user.id }
     ]
   });
 
-  // Request 3: Pending / Requested for Anita Deep Cleaning
-  const req3 = await prisma.serviceRequest.create({
+  // Live Visit: Inside Apartment!
+  const entryDate2 = new Date(Date.now() - 1000 * 60 * 35); // 35 minutes ago
+  const visit2 = await prisma.providerVisit.create({
     data: {
-      requestNumber: 'REQ-2026-0043',
-      residentId: resident1.id,
-      providerProfileId: anita.user.providerProfile.id,
-      categoryName: 'Cleaning & Housekeeping',
-      subCategoryName: 'Deep Cleaning',
-      preferredDate: '2026-11-04',
-      preferredTimeSlot: '09:00 AM - 01:00 PM',
-      block: 'Tower B',
-      flatNumber: '304',
-      problemDescription: 'Balcony deep tile scrubbing and kitchen chimney mesh cleaning before upcoming family festival gathering.',
-      status: 'REQUESTED'
+      serviceRequestId: req2.id,
+      providerProfileId: suresh.user.providerProfile.id,
+      communityId: community1.id,
+      gateId: gateA.id,
+      entryTimestamp: entryDate2,
+      visitStatus: 'INSIDE_APARTMENT',
+      entryQrToken: 'qr_token_entry_suresh_req42'
     }
   });
 
-  await prisma.requestStatusHistory.create({
+  await prisma.visitAuditLog.create({
     data: {
-      serviceRequestId: req3.id,
-      fromStatus: null,
-      toStatus: 'REQUESTED',
-      note: 'New request awaiting provider response',
-      changedById: resident1.id
+      visitId: visit2.id,
+      action: 'ENTRY_RECORDED',
+      performedById: suresh.user.id,
+      reason: 'Valid QR scan at Main Security Gate A',
+      timestamp: entryDate2
     }
   });
 
-  console.log('Service requests, history & privacy reviews seeded.');
+  console.log('Provider visits and attendance seeded: 1 completed, 1 currently inside apartment.');
 
-  // 6. FEATURE 5: REQUIREMENTS (Completely independent from Services!)
+  // 10. FEATURE 5: Domestic Requirements (Hiring)
   const reqmt1 = await prisma.requirement.create({
     data: {
       requirementNumber: 'REQMT-2026-0001',
       residentId: resident1.id,
-      communityId: community.id,
+      communityId: community1.id,
       category: 'COOK',
       roleTitle: 'Experienced Home Cook for Family of 4 (Morning & Evening)',
       scheduleType: 'PART_TIME',
@@ -738,52 +1039,13 @@ async function main() {
       payRangeMin: 7000,
       payRangeMax: 9000,
       payPeriod: 'MONTHLY',
-      description: 'Looking for a reliable cook for Tower B 304. Preparation of morning breakfast (idli/dosa/poha) and evening dinner (rotis, dal, 2 vegetable curries). Hygiene and punctuality are top priorities.',
+      description: 'Looking for a reliable cook for Tower B 304. Preparation of morning breakfast and evening dinner. Hygiene and punctuality are top priorities.',
       preferredStartTime: '07:30 AM & 06:30 PM',
       status: 'OPEN',
       applicantCount: 2
     }
   });
 
-  const reqmt2 = await prisma.requirement.create({
-    data: {
-      requirementNumber: 'REQMT-2026-0002',
-      residentId: resident2.id,
-      communityId: community.id,
-      category: 'DRIVER',
-      roleTitle: 'Part-Time Chauffeur for Automatic Sedan (Morning School & Office Drop)',
-      scheduleType: 'PART_TIME',
-      duration: 'LONG_TERM',
-      payRangeMin: 10000,
-      payRangeMax: 12500,
-      payPeriod: 'MONTHLY',
-      description: 'Need an experienced, non-smoking driver for morning routine: 8:00 AM school drop in Sarjapur Road and 9:15 AM office drop at Ecospace Bellandur. Valid DL and local address proof required.',
-      preferredStartTime: '08:00 AM - 11:30 AM',
-      status: 'OPEN',
-      applicantCount: 1
-    }
-  });
-
-  const reqmt3 = await prisma.requirement.create({
-    data: {
-      requirementNumber: 'REQMT-2026-0003',
-      residentId: resident1.id,
-      communityId: community.id,
-      category: 'HOUSEKEEPING',
-      roleTitle: 'Daily Morning Housekeeping & Utensil Washing Assistant',
-      scheduleType: 'PART_TIME',
-      duration: 'LONG_TERM',
-      payRangeMin: 4000,
-      payRangeMax: 5000,
-      payPeriod: 'MONTHLY',
-      description: 'Daily 1.5 hours: floor sweeping and wet mopping of 3BHK flat, utensil cleaning and drying, balcony dusting.',
-      preferredStartTime: '08:30 AM',
-      status: 'OPEN',
-      applicantCount: 0
-    }
-  });
-
-  // Seed Requirement Applications
   await prisma.requirementApplication.createMany({
     data: [
       {
@@ -803,22 +1065,11 @@ async function main() {
         expectedPay: 8500,
         experience: '8 years cooking experience',
         status: 'PENDING'
-      },
-      {
-        requirementId: reqmt2.id,
-        applicantId: suresh.user.id,
-        applicantRole: 'APPLICANT',
-        coverNote: 'I hold 12 years commercial badge driving license with clean record. Available in morning slot.',
-        expectedPay: 11000,
-        experience: '12 years driving luxury sedans & SUVs',
-        status: 'PENDING'
       }
     ]
   });
 
-  console.log('Feature 5: Requirements and applications seeded.');
-
-  // 7. Seed In-App Conversations & Messages (Preserving Phone Privacy)
+  // 11. Conversations and Private Messages (Zero phone leakage)
   const conv1 = await prisma.conversation.create({
     data: {
       residentId: resident1.id,
@@ -844,42 +1095,35 @@ async function main() {
         content: 'Namaste Rahul ji. Yes, I carry Jaquar and standard PVC spares in my toolkit. I will reach Tower B at 10:20 AM after my gate entry.',
         isRead: true,
         createdAt: new Date(Date.now() - 3600000 * 23)
-      },
-      {
-        conversationId: conv1.id,
-        senderId: ramesh.user.id,
-        content: 'Glad everything is working smoothly now Rahul ji. Let me know if you ever need plumbing checkups.',
-        isRead: true,
-        createdAt: new Date(Date.now() - 3600000 * 2)
       }
     ]
   });
 
-  // 8. Notifications
+  // 12. Notifications
   await prisma.notification.createMany({
     data: [
       {
         userId: resident1.id,
-        type: 'REQUEST_STATUS_CHANGE',
+        type: 'SERVICE_REQUEST',
         title: 'Service Completed',
-        message: 'Ramesh Kumar marked REQ-2026-0041 as completed. Tap here to rate and leave a review.',
+        message: 'Ramesh Kumar completed REQ-2026-0041. Review your experience.',
         link: '/requests',
         isRead: true
       },
       {
         userId: resident2.id,
-        type: 'REQUEST_STATUS_CHANGE',
-        title: 'Technician Arrived',
-        message: 'Suresh Varma checked into Tower A for your electrical service REQ-2026-0042.',
+        type: 'VISIT_UPDATE',
+        title: 'Technician Entered Campus',
+        message: 'Suresh Varma checked into Palm Heights Gate A at 2:28 PM for REQ-2026-0042.',
         link: '/requests',
         isRead: false
       },
       {
-        userId: ramesh.user.id,
-        type: 'REVIEW_RECEIVED',
-        title: 'New 5-Star Review Received!',
-        message: 'Rahul from Tower B gave you 5 stars: "Ramesh came on time, identified the faulty washer in 2 minutes..."',
-        link: '/provider/dashboard',
+        userId: managerUser.id,
+        type: 'VISIT_UPDATE',
+        title: 'Technician on Campus',
+        message: 'Suresh Varma (Sparkle Electrical) is currently inside Tower A for REQ-2026-0042.',
+        link: '/management/attendance',
         isRead: false
       },
       {
@@ -893,8 +1137,8 @@ async function main() {
     ]
   });
 
-  // 9. Notification Preferences
-  for (const u of [adminUser, managerUser, resident1, resident2, ramesh.user, suresh.user]) {
+  // 13. Notification Preferences
+  for (const u of [adminUser, managerUser, resident1, resident2, ramesh.user, suresh.user, businessUser1.user || businessUser1]) {
     await prisma.notificationPreference.create({
       data: {
         userId: u.id,
@@ -906,19 +1150,7 @@ async function main() {
     });
   }
 
-  // 10. Sample Reports & Moderation
-  await prisma.report.create({
-    data: {
-      reporterId: resident2.id,
-      targetType: 'PROVIDER',
-      targetId: createdProviders[createdProviders.length - 1].user.id,
-      reason: 'DUPLICATE_LISTING',
-      notes: 'Testing moderation queue: Checking if multiple phone listings are prevented by society guidelines.',
-      status: 'PENDING'
-    }
-  });
-
-  console.log('Database seeding complete! All roles, categories, services, requirements & requests created.');
+  console.log('Database seeding complete with all 5 roles, multi-apartments, local businesses, subscriptions, campaigns, and QR visits!');
 }
 
 main()

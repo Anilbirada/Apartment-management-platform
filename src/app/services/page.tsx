@@ -21,20 +21,25 @@ import {
 } from 'lucide-react';
 import { RequestServiceModal } from '@/components/services/RequestServiceModal';
 import { PostRequirementModal } from '@/components/requirements/PostRequirementModal';
+import { useApp } from '@/context/AppContext';
 
 function ServicesContent() {
+  const { user } = useApp();
   const searchParams = useSearchParams();
   const initialCategory = searchParams.get('category') || '';
   const initialSubcategory = searchParams.get('subcategory') || '';
   const initialQuery = searchParams.get('q') || '';
+  const initialCommunity = searchParams.get('communityId') || user?.communityId || user?.apartment?.id || user?.community?.id || '';
 
   const [categories, setCategories] = useState<any[]>([]);
+  const [apartments, setApartments] = useState<any[]>([]);
   const [providers, setProviders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Filter state
   const [selectedCategory, setSelectedCategory] = useState(initialCategory);
   const [selectedSubcategory, setSelectedSubcategory] = useState(initialSubcategory);
+  const [selectedCommunityId, setSelectedCommunityId] = useState(initialCommunity);
   const [searchQuery, setSearchQuery] = useState(initialQuery);
   const [verifiedOnly, setVerifiedOnly] = useState(false);
   const [availableToday, setAvailableToday] = useState(false);
@@ -47,19 +52,34 @@ function ServicesContent() {
   const [bookingModalOpen, setBookingModalOpen] = useState(false);
   const [requirementModalOpen, setRequirementModalOpen] = useState(false);
 
-  // Fetch categories
+  // Fetch categories and apartments
   useEffect(() => {
-    async function fetchCategories() {
+    async function fetchData() {
       try {
-        const res = await fetch('/api/v1/categories');
-        if (res.ok) {
-          const data = await res.json();
+        const [catRes, aptRes] = await Promise.all([
+          fetch('/api/v1/categories'),
+          fetch('/api/v1/apartments')
+        ]);
+        if (catRes.ok) {
+          const data = await catRes.json();
           setCategories(data.categories || []);
+        }
+        if (aptRes.ok) {
+          const data = await aptRes.json();
+          setApartments(data.apartments || []);
         }
       } catch (e) {}
     }
-    fetchCategories();
+    fetchData();
   }, []);
+
+  // Sync user apartment if available and not yet set
+  useEffect(() => {
+    const activeCommunity = user?.communityId || user?.apartment?.id || user?.community?.id;
+    if (activeCommunity && !selectedCommunityId) {
+      setSelectedCommunityId(activeCommunity);
+    }
+  }, [user?.communityId, user?.apartment?.id, user?.community?.id]);
 
   // Fetch filtered providers
   useEffect(() => {
@@ -69,6 +89,7 @@ function ServicesContent() {
         const params = new URLSearchParams();
         if (selectedCategory) params.append('category', selectedCategory);
         if (selectedSubcategory) params.append('subcategory', selectedSubcategory);
+        if (selectedCommunityId) params.append('communityId', selectedCommunityId);
         if (verifiedOnly) params.append('verifiedOnly', 'true');
         if (availableToday) params.append('availableToday', 'true');
         if (minRating) params.append('minRating', minRating);
@@ -100,13 +121,14 @@ function ServicesContent() {
     }
 
     fetchProviders();
-  }, [selectedCategory, selectedSubcategory, verifiedOnly, availableToday, minRating, maxPrice, sortBy, searchQuery]);
+  }, [selectedCategory, selectedSubcategory, selectedCommunityId, verifiedOnly, availableToday, minRating, maxPrice, sortBy, searchQuery]);
 
   const activeCategoryObj = categories.find((c) => c.slug === selectedCategory);
 
   const resetFilters = () => {
     setSelectedCategory('');
     setSelectedSubcategory('');
+    setSelectedCommunityId('');
     setSearchQuery('');
     setVerifiedOnly(false);
     setAvailableToday(false);
@@ -210,13 +232,13 @@ function ServicesContent() {
       {/* Search & Filter Toolbar */}
       <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
         {/* Search input */}
-        <div className="md:col-span-5 relative">
+        <div className="md:col-span-4 relative">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search provider name, service title, skill..."
+            placeholder="Search provider name, service..."
             className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-medium focus:ring-2 focus:ring-emerald-500"
           />
           {searchQuery && (
@@ -229,8 +251,27 @@ function ServicesContent() {
           )}
         </div>
 
+        {/* Community / Apartment Selector */}
+        <div className="md:col-span-3 relative">
+          <div className="relative">
+            <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-emerald-600" />
+            <select
+              value={selectedCommunityId}
+              onChange={(e) => setSelectedCommunityId(e.target.value)}
+              className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-bold text-slate-700 dark:text-slate-300 focus:ring-2 focus:ring-emerald-500"
+            >
+              <option value="">All Servicing Localities</option>
+              {apartments.map((apt) => (
+                <option key={apt.id} value={apt.id}>
+                  {apt.name} ({apt.locality || apt.city})
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
         {/* Filters: Available Today & Verified Only */}
-        <div className="md:col-span-4 flex items-center gap-2">
+        <div className="md:col-span-3 flex items-center gap-2">
           <button
             onClick={() => setAvailableToday(!availableToday)}
             className={`px-3 py-2 rounded-xl text-xs font-semibold border transition-all flex items-center gap-1.5 ${
@@ -240,7 +281,7 @@ function ServicesContent() {
             }`}
           >
             <Clock className="w-3.5 h-3.5" />
-            <span>Available Today</span>
+            <span>Today</span>
           </button>
 
           <button
@@ -252,12 +293,12 @@ function ServicesContent() {
             }`}
           >
             <ShieldCheck className="w-3.5 h-3.5" />
-            <span>Verified Only</span>
+            <span>Verified</span>
           </button>
         </div>
 
         {/* Sort By Dropdown */}
-        <div className="md:col-span-3 flex items-center justify-end gap-2">
+        <div className="md:col-span-2 flex items-center justify-end gap-1.5">
           <div className="relative w-full sm:w-auto">
             <select
               value={sortBy}

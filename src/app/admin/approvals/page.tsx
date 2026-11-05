@@ -23,7 +23,7 @@ import { useApp } from '@/context/AppContext';
 export default function AdminApprovalsPage() {
   const { user } = useApp();
 
-  const [activeTab, setActiveTab] = useState<'PROVIDERS' | 'LISTINGS' | 'REPORTS'>('PROVIDERS');
+  const [activeTab, setActiveTab] = useState<'PROVIDERS' | 'LISTINGS' | 'BUSINESSES' | 'CAMPAIGNS' | 'REPORTS'>('PROVIDERS');
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -92,86 +92,116 @@ export default function AdminApprovalsPage() {
         <div>
           <div className="flex items-center gap-2 mb-1">
             <span className="px-2.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 text-[10px] font-extrabold uppercase">
-              Administration & Trust Office
+              Central Platform Trust & Safety
             </span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white">
             Verification & Approval Queue
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
-            Review submitted identity cards, police clearances, service catalogs and flagged resident content.
+            Review submitted identity cards, provider catalogs, local businesses, advertising campaigns, and moderation reports.
           </p>
         </div>
       </div>
 
       {/* Metric Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+        <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
           <div className="text-xs text-slate-400 font-semibold">Pending Providers</div>
           <div className="text-2xl font-black text-amber-600 mt-1">
-            {data?.stats?.pendingProvidersCount || 0}
+            {data?.pendingProviders?.length || 0}
           </div>
-          <div className="text-[11px] text-slate-400 mt-0.5">Awaiting document inspection</div>
+          <div className="text-[11px] text-slate-400 mt-0.5">Awaiting verification</div>
         </div>
 
-        <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
+        <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
           <div className="text-xs text-slate-400 font-semibold">Pending Listings</div>
           <div className="text-2xl font-black text-blue-600 mt-1">
-            {data?.stats?.pendingListingsCount || 0}
+            {data?.pendingListings?.length || 0}
           </div>
-          <div className="text-[11px] text-slate-400 mt-0.5">New provider catalog items</div>
+          <div className="text-[11px] text-slate-400 mt-0.5">Catalog items</div>
         </div>
 
-        <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
+        <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
+          <div className="text-xs text-slate-400 font-semibold">Pending Businesses</div>
+          <div className="text-2xl font-black text-indigo-600 mt-1">
+            {data?.pendingBusinesses?.length || 0}
+          </div>
+          <div className="text-[11px] text-slate-400 mt-0.5">Awaiting license review</div>
+        </div>
+
+        <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
+          <div className="text-xs text-slate-400 font-semibold">Pending Campaigns</div>
+          <div className="text-2xl font-black text-emerald-600 mt-1">
+            {data?.pendingCampaigns?.length || 0}
+          </div>
+          <div className="text-[11px] text-slate-400 mt-0.5">Sponsored ads</div>
+        </div>
+
+        <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
           <div className="text-xs text-slate-400 font-semibold">Reported Content</div>
           <div className="text-2xl font-black text-rose-600 mt-1">
-            {data?.stats?.pendingReportsCount || 0}
+            {data?.reports?.length || 0}
           </div>
           <div className="text-[11px] text-slate-400 mt-0.5">Flagged for moderation</div>
-        </div>
-
-        <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
-          <div className="text-xs text-slate-400 font-semibold">Verified Completed Jobs</div>
-          <div className="text-2xl font-black text-emerald-600 mt-1">
-            {data?.stats?.totalCompletedJobs || 0}
-          </div>
-          <div className="text-[11px] text-slate-400 mt-0.5">Across society campus</div>
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-3 text-xs font-bold">
+      <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-3 text-xs font-bold">
         <button
           onClick={() => setActiveTab('PROVIDERS')}
-          className={`px-4 py-2 rounded-xl transition-all ${
+          className={`px-3.5 py-1.5 rounded-xl transition-all ${
             activeTab === 'PROVIDERS'
               ? 'bg-amber-600 text-white shadow-xs'
               : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
           }`}
         >
-          Pending Providers ({data?.pendingProviders?.length || 0})
+          Providers ({data?.pendingProviders?.length || 0})
         </button>
 
         <button
           onClick={() => setActiveTab('LISTINGS')}
-          className={`px-4 py-2 rounded-xl transition-all ${
+          className={`px-3.5 py-1.5 rounded-xl transition-all ${
             activeTab === 'LISTINGS'
               ? 'bg-blue-600 text-white shadow-xs'
               : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
           }`}
         >
-          Pending Listings ({data?.pendingListings?.length || 0})
+          Listings ({data?.pendingListings?.length || 0})
+        </button>
+
+        <button
+          onClick={() => setActiveTab('BUSINESSES')}
+          className={`px-3.5 py-1.5 rounded-xl transition-all ${
+            activeTab === 'BUSINESSES'
+              ? 'bg-indigo-600 text-white shadow-xs'
+              : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+          }`}
+        >
+          Local Businesses ({data?.pendingBusinesses?.length || 0})
+        </button>
+
+        <button
+          onClick={() => setActiveTab('CAMPAIGNS')}
+          className={`px-3.5 py-1.5 rounded-xl transition-all ${
+            activeTab === 'CAMPAIGNS'
+              ? 'bg-emerald-600 text-white shadow-xs'
+              : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+          }`}
+        >
+          Ad Campaigns ({data?.pendingCampaigns?.length || 0})
         </button>
 
         <button
           onClick={() => setActiveTab('REPORTS')}
-          className={`px-4 py-2 rounded-xl transition-all ${
+          className={`px-3.5 py-1.5 rounded-xl transition-all ${
             activeTab === 'REPORTS'
               ? 'bg-rose-600 text-white shadow-xs'
               : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
           }`}
         >
-          Reported Content ({data?.reports?.length || 0})
+          Reports ({data?.reports?.length || 0})
         </button>
       </div>
 
@@ -324,7 +354,135 @@ export default function AdminApprovalsPage() {
             )
           )}
 
-          {/* TAB 3: REPORTED CONTENT */}
+          {/* TAB 3: PENDING LOCAL BUSINESSES */}
+          {activeTab === 'BUSINESSES' && (
+            data?.pendingBusinesses?.length === 0 ? (
+              <div className="py-16 text-center text-xs text-slate-400 rounded-3xl border border-dashed border-slate-200 dark:border-slate-800">
+                No local business applications waiting in approval queue.
+              </div>
+            ) : (
+              data?.pendingBusinesses?.map((biz: any) => (
+                <div
+                  key={biz.id}
+                  className="p-6 rounded-3xl border bg-white dark:bg-slate-900 border-slate-200/80 dark:border-slate-800 space-y-4 shadow-xs"
+                >
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="flex items-center gap-3.5">
+                      <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 flex items-center justify-center text-lg font-black text-indigo-700 dark:text-indigo-300">
+                        {biz.businessName?.charAt(0) || 'B'}
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-extrabold text-base text-slate-900 dark:text-white">
+                            {biz.businessName}
+                          </h3>
+                          <span className="px-2 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-950 text-indigo-800 dark:text-indigo-300 text-[10px] font-extrabold">
+                            {biz.category}
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-500 mt-0.5">
+                          Owner: {biz.user?.name} ({biz.user?.email}) • Reg: {biz.registrationNumber || 'Standard'}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => {
+                          setRejectTarget({ type: 'BUSINESS', id: biz.id, name: biz.businessName });
+                          setRejectModalOpen(true);
+                        }}
+                        className="px-3.5 py-1.5 rounded-xl border border-rose-200 text-rose-600 text-xs font-semibold hover:bg-rose-50"
+                      >
+                        Decline
+                      </button>
+
+                      <button
+                        onClick={() => handleAction('BUSINESS', biz.id, 'APPROVE')}
+                        className="px-4 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-xs flex items-center gap-1"
+                      >
+                        <Check className="w-4 h-4" />
+                        <span>Approve Business</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="text-xs text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-800/40 p-3.5 rounded-2xl border border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div><strong>Address:</strong> {biz.address || 'Local Community Plaza'} • PIN: {biz.pinCode}</div>
+                    <div className="text-indigo-600 dark:text-indigo-400 font-bold">{biz.operatingAreas || 'Neighborhoods'}</div>
+                  </div>
+                </div>
+              ))
+            )
+          )}
+
+          {/* TAB 4: PENDING ADVERTISING CAMPAIGNS */}
+          {activeTab === 'CAMPAIGNS' && (
+            data?.pendingCampaigns?.length === 0 ? (
+              <div className="py-16 text-center text-xs text-slate-400 rounded-3xl border border-dashed border-slate-200 dark:border-slate-800">
+                No sponsored advertising campaigns waiting for moderation.
+              </div>
+            ) : (
+              data?.pendingCampaigns?.map((camp: any) => (
+                <div
+                  key={camp.id}
+                  className="p-6 rounded-3xl border bg-white dark:bg-slate-900 border-slate-200/80 dark:border-slate-800 space-y-4 shadow-xs"
+                >
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="px-2.5 py-0.5 rounded-md bg-emerald-100 text-emerald-800 text-[10px] font-bold">
+                          {camp.business?.businessName}
+                        </span>
+                        <span className="text-xs text-slate-400 font-semibold">
+                          Target: {camp.targetApartments || 'All Communities'}
+                        </span>
+                      </div>
+                      <h3 className="font-extrabold text-base text-slate-900 dark:text-white">
+                        {camp.title}
+                      </h3>
+                      <p className="text-xs text-slate-600 dark:text-slate-300 mt-1 max-w-xl">
+                        {camp.description}
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      <div className="text-right mr-3">
+                        <span className="text-[10px] text-slate-400">Budget</span>
+                        <div className="text-base font-black text-slate-900 dark:text-white">₹{camp.budget}</div>
+                      </div>
+
+                      <button
+                        onClick={() => {
+                          setRejectTarget({ type: 'CAMPAIGN', id: camp.id, name: camp.title });
+                          setRejectModalOpen(true);
+                        }}
+                        className="px-3.5 py-1.5 rounded-xl border border-rose-200 text-rose-600 text-xs font-semibold hover:bg-rose-50"
+                      >
+                        Decline
+                      </button>
+
+                      <button
+                        onClick={() => handleAction('CAMPAIGN', camp.id, 'APPROVE')}
+                        className="px-4 py-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold shadow-xs flex items-center gap-1"
+                      >
+                        <Check className="w-4 h-4" />
+                        <span>Approve & Launch Ad</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {camp.bannerUrl && (
+                    <div className="w-full h-32 rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800">
+                      <img src={camp.bannerUrl} alt={camp.title} className="w-full h-full object-cover" />
+                    </div>
+                  )}
+                </div>
+              ))
+            )
+          )}
+
+          {/* TAB 5: REPORTED CONTENT */}
           {activeTab === 'REPORTS' && (
             data?.reports?.length === 0 ? (
               <div className="py-16 text-center text-xs text-slate-400 rounded-3xl border border-dashed border-slate-200 dark:border-slate-800">

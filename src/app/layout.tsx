@@ -5,8 +5,8 @@ import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
 
 export const metadata: Metadata = {
-  title: 'Palm Heights Residences | Community Management & Services Marketplace',
-  description: 'A world-class residential community platform connecting residents with trusted, verified doorstep service providers.',
+  title: 'Palm Heights Enterprise | Apartment Management & Local Marketplace SaaS',
+  description: 'A centralized multi-apartment platform connecting residents, society management, verified doorstep service providers, and neighborhood local businesses with isolated administration and zero privacy leakage.',
 };
 
 export default function RootLayout({

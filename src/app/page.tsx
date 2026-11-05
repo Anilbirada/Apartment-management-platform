@@ -9,6 +9,10 @@ import { PopularProvidersCarousel } from '@/components/home/PopularProvidersCaro
 import { CommunityNotices } from '@/components/home/CommunityNotices';
 import { RequestServiceModal } from '@/components/services/RequestServiceModal';
 import { PostRequirementModal } from '@/components/requirements/PostRequirementModal';
+import { SponsoredAdBanner } from '@/components/home/SponsoredAdBanner';
+import { PublicCommunitiesSection } from '@/components/home/PublicCommunitiesSection';
+import { PublicBusinessesSection } from '@/components/home/PublicBusinessesSection';
+import { HowItWorksSection } from '@/components/home/HowItWorksSection';
 import {
   ShieldCheck,
   Lock,
@@ -17,7 +21,10 @@ import {
   Award,
   CheckCircle2,
   Clock,
-  ArrowRight
+  ArrowRight,
+  Building2,
+  Store,
+  Wrench
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -67,7 +74,7 @@ export default function HomePage() {
   };
 
   return (
-    <div className="space-y-4 pb-16">
+    <div className="space-y-6 pb-20">
       
       {/* Festival Variant Banner (if Festival theme active) */}
       <FestivalBanner />
@@ -77,6 +84,41 @@ export default function HomePage() {
         onOfferService={handleOfferService}
         onPostRequirement={() => setRequirementModalOpen(true)}
       />
+
+      {/* Public Visitor Welcome Bar (if not logged in) */}
+      {!user && (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="p-4 sm:p-5 rounded-3xl bg-gradient-to-r from-emerald-900/90 via-teal-900/90 to-slate-900 text-white border border-emerald-500/20 shadow-lg flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="space-y-1 text-center sm:text-left">
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] font-black uppercase tracking-wider border border-emerald-400/20">
+                <Sparkles className="w-3 h-3" />
+                <span>Open Public Portal</span>
+              </div>
+              <h3 className="text-sm sm:text-base font-extrabold">
+                Exploring Palm Heights & Connected Apartment Communities
+              </h3>
+              <p className="text-xs text-slate-300 max-w-xl">
+                Browse approved local trades, explore neighborhood businesses, and review society amenities without logging in. Sign in or register to book services and interact with neighbors.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0">
+              <Link
+                href="/login"
+                className="px-4 py-2 rounded-xl border border-white/20 hover:bg-white/10 text-white font-bold text-xs transition-colors"
+              >
+                Sign In
+              </Link>
+              <Link
+                href="/login?mode=register"
+                className="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs shadow-md transition-colors"
+              >
+                Create Account
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Trust & Verification Guarantee Ribbon */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2">
@@ -126,6 +168,9 @@ export default function HomePage() {
       {/* Module 2: Six Service Categories Grid */}
       <CategoryGrid />
 
+      {/* Requirement 4: Free Sponsored Resident Local Deals Banner */}
+      <SponsoredAdBanner />
+
       {/* Module 3: Popular Near You Provider Carousel */}
       <PopularProvidersCarousel onRequestService={handleOpenBooking} />
 
@@ -163,6 +208,15 @@ export default function HomePage() {
           </div>
         </div>
       </div>
+
+      {/* Requirement 10 Section 1: Connected Apartment Communities */}
+      <PublicCommunitiesSection />
+
+      {/* Requirement 10 Section 2: Verified Neighborhood Businesses */}
+      <PublicBusinessesSection />
+
+      {/* Requirement 10 Section 3: How The Platform Works (4 User Roles) */}
+      <HowItWorksSection />
 
       {/* Society Notices Preview */}
       <CommunityNotices />

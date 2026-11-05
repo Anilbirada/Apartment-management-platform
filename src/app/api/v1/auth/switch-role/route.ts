@@ -11,6 +11,7 @@ export async function POST(req: NextRequest) {
       MANAGEMENT: 'manager@palmheights.com',
       RESIDENT: 'rahul.sharma@gmail.com',
       PROVIDER: 'ramesh.plumber@gmail.com',
+      BUSINESS: 'owner@namastefresh.com'
     };
 
     const email = targetEmailMap[role] || 'rahul.sharma@gmail.com';
@@ -20,20 +21,26 @@ export async function POST(req: NextRequest) {
       include: {
         residentProfile: true,
         providerProfile: true,
+        businessProfile: true,
         communityMembers: {
           include: { community: true }
         },
-        community: true
+        community: true,
+        subscriptions: {
+          where: { status: 'ACTIVE' },
+          include: { plan: true }
+        }
       }
     });
 
     if (!user) {
-      return NextResponse.json({ error: 'User for role not found' }, { status: 404 });
+      return NextResponse.json({ error: 'User for requested role not found' }, { status: 404 });
     }
 
     const token = signToken({
       userId: user.id,
       email: user.email,
+      phone: user.phone,
       role: user.role as any,
       communityId: user.communityId || undefined,
       name: user.name,
@@ -45,15 +52,18 @@ export async function POST(req: NextRequest) {
       user: {
         id: user.id,
         email: user.email,
+        phone: user.phone,
         name: user.name,
         role: user.role,
         avatar: user.avatar,
-        phone: user.phone,
         isVerified: user.isVerified,
+        status: user.status,
         community: user.community,
         residentProfile: user.residentProfile,
         providerProfile: user.providerProfile,
-        communityMembers: user.communityMembers
+        businessProfile: user.businessProfile,
+        communityMembers: user.communityMembers,
+        subscriptions: user.subscriptions
       }
     });
 

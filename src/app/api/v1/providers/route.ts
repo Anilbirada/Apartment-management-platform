@@ -8,6 +8,9 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const categorySlug = searchParams.get('category');
     const subCategorySlug = searchParams.get('subcategory');
+    const communityId = searchParams.get('communityId');
+    const postalCode = searchParams.get('postalCode');
+    const locality = searchParams.get('locality');
     const minRating = searchParams.get('minRating');
     const maxPrice = searchParams.get('maxPrice');
     const verifiedOnly = searchParams.get('verifiedOnly') === 'true';
@@ -35,6 +38,7 @@ export async function GET(req: NextRequest) {
       where.startingPrice = { lte: parseFloat(maxPrice) };
     }
 
+    // Category / subcategory matching
     if (categorySlug || subCategorySlug) {
       where.listings = {
         some: {
@@ -43,6 +47,28 @@ export async function GET(req: NextRequest) {
           ...(subCategorySlug ? { subCategory: { slug: subCategorySlug } } : {})
         }
       };
+    }
+
+    // Geographic local area matching (Requirement 1 & 4)
+    if (communityId || postalCode || locality) {
+      const areaConditions: any[] = [];
+      if (communityId) {
+        areaConditions.push({ communityId });
+      }
+      if (postalCode) {
+        areaConditions.push({ postalCode });
+      }
+      if (locality) {
+        areaConditions.push({ locality: { contains: locality } });
+      }
+
+      if (areaConditions.length > 0) {
+        where.serviceAreas = {
+          some: {
+            OR: areaConditions
+          }
+        };
+      }
     }
 
     let orderBy: any = { rating: 'desc' };
@@ -64,8 +90,11 @@ export async function GET(req: NextRequest) {
             name: true,
             avatar: true,
             isVerified: true,
-            // NOTICE: phone is intentionally NOT selected to preserve privacy rule #1
+            // PRIVACY RULE: phone is strictly excluded from output payloads!
           }
+        },
+        serviceAreas: {
+          include: { community: true }
         },
         listings: {
           where: { status: 'PUBLISHED' },
@@ -82,8 +111,8 @@ export async function GET(req: NextRequest) {
             rating: true,
             comment: true,
             photoUrl: true,
-            reviewerFirstName: true, // Privacy rule #5: First name only
-            reviewerBlock: true,     // Privacy rule #5: Block only
+            reviewerFirstName: true,
+            reviewerBlock: true,
             createdAt: true
           }
         }

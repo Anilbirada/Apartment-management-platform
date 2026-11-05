@@ -1,4 +1,4 @@
-// Prisma Schema for Apartment Management & Community Services Marketplace
+// Prisma Schema for Enterprise Apartment Management & Local Services Marketplace
 
 generator client {
   provider = "prisma-client-js"
@@ -14,8 +14,8 @@ model User {
   email                 String                 @unique
   passwordHash          String
   name                  String
-  phone                 String
-  role                  String                 @default("RESIDENT") // RESIDENT, PROVIDER, MANAGEMENT, ADMIN
+  phone                 String                 @unique
+  role                  String                 @default("RESIDENT") // RESIDENT, PROVIDER, MANAGEMENT, BUSINESS, ADMIN
   avatar                String?
   isVerified            Boolean                @default(false)
   status                String                 @default("ACTIVE") // ACTIVE, SUSPENDED, PENDING
@@ -23,9 +23,11 @@ model User {
   createdAt             DateTime               @default(now())
   updatedAt             DateTime               @updatedAt
 
-  community             Community?             @relation(fields: [communityId], references: [id])
+  community             Community?             @relation("CommunityResidents", fields: [communityId], references: [id])
+  managedCommunities    Community[]            @relation("ManagedCommunities")
   residentProfile       ResidentProfile?
   providerProfile       ProviderProfile?
+  businessProfile       LocalBusiness?
   communityMembers      CommunityMember[]
   serviceRequests       ServiceRequest[]       @relation("ResidentRequests")
   requirements          Requirement[]          @relation("ResidentRequirements")
@@ -36,26 +38,73 @@ model User {
   reports               Report[]               @relation("ReporterReports")
   sentMessages          Message[]              @relation("SentMessages")
   adminApprovals        AdminApproval[]        @relation("AdminApprover")
+  residentApplications  ResidentApplication[]
+  sentInvitations       ResidentInvitation[]   @relation("InvitedResidents")
+  subscriptions         Subscription[]
+  payments              PaymentTransaction[]
 }
 
 model Community {
-  id           String            @id @default(uuid())
-  name         String
-  code         String            @unique
-  address      String
-  city         String
-  state        String
-  postalCode   String
-  totalBlocks  Int               @default(4)
-  totalFlats   Int               @default(240)
-  heroImage    String?
-  noticesJson  String?           // JSON array of community notices
-  createdAt    DateTime          @default(now())
-  updatedAt    DateTime          @updatedAt
+  id                    String                 @id @default(uuid())
+  name                  String
+  code                  String                 @unique
+  address               String
+  city                  String
+  state                 String
+  postalCode            String
+  totalBlocks           Int                    @default(4)
+  totalFlats            Int                    @default(240)
+  heroImage             String?
+  noticesJson           String?                // JSON array of community notices
+  status                String                 @default("ACTIVE") // ACTIVE, INACTIVE, SUSPENDED
+  onboardingMode        String                 @default("BOTH") // BOTH, MANAGEMENT_INVITE, SELF_REGISTER
+  contactPerson         String?
+  contactPhone          String?
+  contactEmail          String?
+  managerId             String?
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
 
-  users        User[]
-  members      CommunityMember[]
-  requirements Requirement[]
+  manager               User?                  @relation("ManagedCommunities", fields: [managerId], references: [id])
+  users                 User[]                 @relation("CommunityResidents")
+  members               CommunityMember[]
+  requirements          Requirement[]
+  blocks                ApartmentBlock[]
+  gates                 ApartmentGate[]
+  residentApplications  ResidentApplication[]
+  residentInvitations   ResidentInvitation[]
+  providerVisits        ProviderVisit[]
+  serviceAreas          ProviderServiceArea[]
+}
+
+model ApartmentBlock {
+  id           String          @id @default(uuid())
+  communityId  String
+  name         String          // e.g. "Tower A", "Block B"
+  code         String?
+  totalFloors  Int             @default(14)
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  community    Community       @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  units        ApartmentUnit[]
+
+  @@unique([communityId, name])
+}
+
+model ApartmentUnit {
+  id           String          @id @default(uuid())
+  blockId      String
+  floorNumber  Int             @default(1)
+  unitNumber   String          // e.g. "101", "304"
+  residentType String          @default("OWNER") // OWNER, TENANT, VACANT
+  status       String          @default("OCCUPIED") // OCCUPIED, VACANT
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  block        ApartmentBlock  @relation(fields: [blockId], references: [id], onDelete: Cascade)
+
+  @@unique([blockId, unitNumber])
 }
 
 model CommunityMember {
@@ -75,6 +124,44 @@ model CommunityMember {
   @@unique([communityId, block, flatNumber])
 }
 
+model ResidentApplication {
+  id               String      @id @default(uuid())
+  communityId      String
+  userId           String
+  block            String
+  flatNumber       String
+  residentType     String      @default("OWNER") // OWNER, TENANT
+  proofDocumentUrl String?
+  status           String      @default("PENDING") // PENDING, APPROVED, REJECTED, SUSPENDED
+  rejectionReason  String?
+  reviewedById     String?
+  reviewedAt       DateTime?
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  community        Community   @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  user             User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model ResidentInvitation {
+  id               String      @id @default(uuid())
+  communityId      String
+  email            String
+  phone            String
+  name             String
+  block            String
+  flatNumber       String
+  residentType     String      @default("OWNER")
+  token            String      @unique
+  status           String      @default("PENDING") // PENDING, ACCEPTED, EXPIRED
+  invitedById      String?
+  expiresAt        DateTime
+  createdAt        DateTime    @default(now())
+
+  community        Community   @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  invitedBy        User?       @relation("InvitedResidents", fields: [invitedById], references: [id])
+}
+
 model ResidentProfile {
   id                 String   @id @default(uuid())
   userId             String   @unique
@@ -89,33 +176,51 @@ model ResidentProfile {
 }
 
 model ProviderProfile {
-  id                   String             @id @default(uuid())
-  userId               String             @unique
+  id                   String                 @id @default(uuid())
+  userId               String                 @unique
   businessName         String
-  experienceYears      Int                @default(3)
-  serviceArea          String             @default("Entire Campus & Surrounding 3km")
+  experienceYears      Int                    @default(3)
+  serviceArea          String                 @default("Entire Campus & Surrounding 3km")
   bio                  String?
-  rating               Float              @default(5.0)
-  reviewCount          Int                @default(0)
-  completedJobsCount   Int                @default(0)
-  startingPrice        Float              @default(299)
-  availableToday       Boolean            @default(true)
-  isApproved           Boolean            @default(false)
-  verificationStatus   String             @default("PENDING") // PENDING, APPROVED, REJECTED, SUSPENDED
+  rating               Float                  @default(5.0)
+  reviewCount          Int                    @default(0)
+  completedJobsCount   Int                    @default(0)
+  startingPrice        Float                  @default(299)
+  availableToday       Boolean                @default(true)
+  isApproved           Boolean                @default(false)
+  verificationStatus   String                 @default("PENDING") // PENDING, APPROVED, REJECTED, SUSPENDED
   approvalNotes        String?
-  idProofType          String?            // AADHAAR, PAN, VOTER_ID, PASSPORT
+  idProofType          String?                // AADHAAR, PAN, VOTER_ID, PASSPORT
   idProofUrl           String?
   policeVerificationUrl String?
-  beforeAfterPhotos    String?            // JSON array of strings
-  createdAt            DateTime           @default(now())
-  updatedAt            DateTime           @updatedAt
+  beforeAfterPhotos    String?                // JSON array of strings
+  createdAt            DateTime               @default(now())
+  updatedAt            DateTime               @updatedAt
 
-  user                 User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user                 User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
   documents            ProviderDocument[]
   listings             ServiceListing[]
   availabilities       ServiceAvailability[]
   serviceRequests      ServiceRequest[]
   reviews              Review[]
+  serviceAreas         ProviderServiceArea[]
+  visits               ProviderVisit[]
+}
+
+model ProviderServiceArea {
+  id                String          @id @default(uuid())
+  providerProfileId String
+  country           String          @default("India")
+  state             String          @default("Karnataka")
+  city              String          @default("Bengaluru")
+  locality          String          // e.g. "Bellandur", "HSR Layout", "Electronic City"
+  postalCode        String          // e.g. "560103"
+  serviceRadiusKm   Float           @default(5.0)
+  communityId       String?         // Optional direct apartment link
+  createdAt         DateTime        @default(now())
+
+  providerProfile   ProviderProfile @relation(fields: [providerProfileId], references: [id], onDelete: Cascade)
+  community         Community?      @relation(fields: [communityId], references: [id])
 }
 
 model ProviderDocument {
@@ -132,17 +237,17 @@ model ProviderDocument {
 }
 
 model Category {
-  id          String           @id @default(uuid())
-  name        String
-  slug        String           @unique
-  description String
-  icon        String
-  group       String           // HOME_MAINTENANCE, CLEANING_HOUSEKEEPING, VEHICLE, HOUSEHOLD_PERSONAL, EDUCATION_SKILLS, PROFESSIONAL
-  launchStatus String          @default("LAUNCHED") // LAUNCHED, LAUNCHING_NOW, COMING_SOON
-  isActive    Boolean          @default(true)
-  sortOrder   Int              @default(0)
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
+  id           String           @id @default(uuid())
+  name         String
+  slug         String           @unique
+  description  String
+  icon         String
+  group        String           // HOME_MAINTENANCE, CLEANING_HOUSEKEEPING, VEHICLE, HOUSEHOLD_PERSONAL, EDUCATION_SKILLS, PROFESSIONAL
+  launchStatus String           @default("LAUNCHED") // LAUNCHED, LAUNCHING_NOW, COMING_SOON
+  isActive     Boolean          @default(true)
+  sortOrder    Int              @default(0)
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
 
   subCategories SubCategory[]
   listings      ServiceListing[]
@@ -229,6 +334,7 @@ model ServiceRequest {
   statusHistory      RequestStatusHistory[]
   review             Review?
   conversations      Conversation[]
+  visits             ProviderVisit[]
 }
 
 model RequestStatusHistory {
@@ -335,7 +441,7 @@ model Review {
 model Notification {
   id        String   @id @default(uuid())
   userId    String
-  type      String   // SERVICE_REQUEST, REQUEST_STATUS_CHANGE, REVIEW_RECEIVED, PROVIDER_APPROVAL, LISTING_APPROVAL, REQUIREMENT_UPDATE
+  type      String   // SERVICE_REQUEST, REQUEST_STATUS_CHANGE, REVIEW_RECEIVED, PROVIDER_APPROVAL, LISTING_APPROVAL, REQUIREMENT_UPDATE, CAMPAIGN_APPROVAL, VISIT_UPDATE
   title     String
   message   String
   link      String?
@@ -359,7 +465,7 @@ model NotificationPreference {
 model Report {
   id              String   @id @default(uuid())
   reporterId      String
-  targetType      String   // LISTING, REVIEW, PROVIDER, REQUIREMENT
+  targetType      String   // LISTING, REVIEW, PROVIDER, REQUIREMENT, BUSINESS, CAMPAIGN
   targetId        String
   reason          String
   notes           String?
@@ -373,7 +479,7 @@ model Report {
 
 model AdminApproval {
   id         String   @id @default(uuid())
-  targetType String   // PROVIDER_PROFILE, SERVICE_LISTING, REQUIREMENT
+  targetType String   // PROVIDER_PROFILE, SERVICE_LISTING, REQUIREMENT, LOCAL_BUSINESS, BUSINESS_CAMPAIGN
   targetId   String
   adminId    String
   decision   String   // APPROVED, REJECTED
@@ -381,4 +487,196 @@ model AdminApproval {
   createdAt  DateTime @default(now())
 
   admin      User     @relation("AdminApprover", fields: [adminId], references: [id], onDelete: Cascade)
+}
+
+// ----------------------------------------------------
+// LOCAL BUSINESS & ADVERTISING CAMPAIGNS (ROLE 4)
+// ----------------------------------------------------
+model LocalBusiness {
+  id                 String             @id @default(uuid())
+  userId             String             @unique
+  businessName       String
+  registrationNumber String?
+  category           String             // GROCERY, RESTAURANT, PHARMACY, SALON, HARDWARE, CLEANING_AGENCY, OTHER
+  description        String
+  logoUrl            String?
+  bannerUrl          String?
+  address            String
+  city               String             @default("Bengaluru")
+  state              String             @default("Karnataka")
+  postalCode         String             @default("560103")
+  contactPhone       String
+  contactEmail       String
+  website            String?
+  operatingAreasJson String?            // JSON array of localities served
+  targetApartments   String?            // JSON array of community IDs
+  isApproved         Boolean            @default(false)
+  verificationStatus String             @default("PENDING") // PENDING, APPROVED, REJECTED
+  status             String             @default("ACTIVE") // ACTIVE, SUSPENDED
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  user               User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  campaigns          BusinessCampaign[]
+}
+
+model BusinessCampaign {
+  id                   String               @id @default(uuid())
+  businessId           String
+  title                String
+  description          String
+  bannerUrl            String
+  targetCategory       String
+  targetCity           String               @default("Bengaluru")
+  targetLocalitiesJson String?              // JSON array of strings
+  targetApartmentsJson String?              // JSON array of community IDs
+  startDate            DateTime
+  endDate              DateTime
+  status               String               @default("PENDING_APPROVAL") // DRAFT, PENDING_APPROVAL, APPROVED, SCHEDULED, ACTIVE, PAUSED, COMPLETED, REJECTED, EXPIRED, DELETED
+  rejectionReason      String?
+  impressionsCount     Int                  @default(0)
+  clicksCount          Int                  @default(0)
+  approvedById         String?
+  approvedAt           DateTime?
+  // Requirement 11: Image upload storage references
+  imageFileName        String?
+  imageFileSize        Int?
+  imageMimeType        String?
+  // Requirement 12: Soft deletion metadata
+  deletedAt            DateTime?
+  deletedById          String?
+  deletionReason       String?
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
+
+  business             LocalBusiness        @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  payments             PaymentTransaction[]
+  auditLogs            CampaignAuditLog[]
+}
+
+model CampaignAuditLog {
+  id                String           @id @default(uuid())
+  campaignId        String
+  action            String           // CREATED, UPDATED, APPROVED, REJECTED, DELETED, STATUS_CHANGED
+  performedById     String?
+  previousStateJson String?
+  newStateJson      String?
+  reason            String?
+  timestamp         DateTime         @default(now())
+
+  campaign          BusinessCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+}
+
+// ----------------------------------------------------
+// MONETIZATION & SUBSCRIPTION MANAGEMENT
+// ----------------------------------------------------
+model SubscriptionPlan {
+  id                      String         @id @default(uuid())
+  name                    String         // e.g. "Free Basic", "Provider Premium", "Business Standard"
+  targetRole              String         // PROVIDER, LOCAL_BUSINESS
+  planType                String         @default("PAID") // FREE, PAID
+  priceInr                Float          @default(0)
+  billingCycle            String         @default("MONTHLY") // MONTHLY, QUARTERLY, ANNUAL
+  description             String
+  featureEntitlementsJson String?        // JSON object of feature limits / perks
+  isActive                Boolean        @default(true)
+  sortOrder               Int            @default(0)
+  createdAt               DateTime       @default(now())
+  updatedAt               DateTime       @updatedAt
+
+  subscriptions           Subscription[]
+}
+
+model Subscription {
+  id                 String               @id @default(uuid())
+  userId             String
+  planId             String
+  targetRole         String               // PROVIDER, LOCAL_BUSINESS
+  status             String               @default("ACTIVE") // FREE, PENDING_PAYMENT, ACTIVE, EXPIRED, CANCELLED, SUSPENDED, PAYMENT_FAILED
+  currentPeriodStart DateTime             @default(now())
+  currentPeriodEnd   DateTime
+  autoRenew          Boolean              @default(true)
+  cancelledAt        DateTime?
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+
+  user               User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan               SubscriptionPlan     @relation(fields: [planId], references: [id], onDelete: Cascade)
+  payments           PaymentTransaction[]
+}
+
+model PaymentTransaction {
+  id                String            @id @default(uuid())
+  transactionNumber String            @unique // e.g. "TXN-2026-0042"
+  userId            String
+  subscriptionId    String?
+  campaignId        String?
+  amountInr         Float
+  currency          String            @default("INR")
+  status            String            @default("SUCCESS") // INITIATED, PENDING, SUCCESS, FAILED, REFUNDED
+  paymentMethod     String            @default("UPI") // UPI, CARD, NETBANKING, WALLET
+  gatewayReference  String?           // Gateway Order ID / Payment Reference
+  gatewaySignature  String?
+  metadataJson      String?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subscription      Subscription?     @relation(fields: [subscriptionId], references: [id])
+  campaign          BusinessCampaign? @relation(fields: [campaignId], references: [id])
+}
+
+// ----------------------------------------------------
+// PROVIDER ENTRY & EXIT QR ATTENDANCE SYSTEM
+// ----------------------------------------------------
+model ApartmentGate {
+  id           String          @id @default(uuid())
+  communityId  String
+  gateName     String          // e.g. "Main Security Gate A", "North Service Gate"
+  gateCode     String          @unique // e.g. "GATE-PALM-01"
+  qrSecret     String          // Secret key for rotating HMAC signature verification
+  isActive     Boolean         @default(true)
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  community    Community       @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  visits       ProviderVisit[]
+}
+
+model ProviderVisit {
+  id                     String          @id @default(uuid())
+  serviceRequestId       String
+  providerProfileId      String
+  communityId            String
+  gateId                 String?
+  entryTimestamp         DateTime?
+  exitTimestamp          DateTime?
+  durationMinutes        Int?
+  visitStatus            String          @default("SCHEDULED") // SCHEDULED, INSIDE_APARTMENT, EXITED, CANCELLED, REJECTED
+  entryQrToken           String?
+  exitQrToken            String?
+  isManualCorrection     Boolean         @default(false)
+  manualCorrectionReason String?
+  correctedById          String?
+  createdAt              DateTime        @default(now())
+  updatedAt              DateTime        @updatedAt
+
+  serviceRequest         ServiceRequest  @relation(fields: [serviceRequestId], references: [id], onDelete: Cascade)
+  providerProfile        ProviderProfile @relation(fields: [providerProfileId], references: [id], onDelete: Cascade)
+  community              Community       @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  gate                   ApartmentGate?  @relation(fields: [gateId], references: [id])
+  auditLogs              VisitAuditLog[]
+}
+
+model VisitAuditLog {
+  id                String        @id @default(uuid())
+  visitId           String
+  action            String        // ENTRY_RECORDED, EXIT_RECORDED, MANUAL_CORRECTION, SCAN_REJECTED
+  performedById     String?
+  previousStateJson String?
+  newStateJson      String?
+  reason            String?
+  timestamp         DateTime      @default(now())
+
+  visit             ProviderVisit @relation(fields: [visitId], references: [id], onDelete: Cascade)
 }

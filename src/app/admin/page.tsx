@@ -38,9 +38,11 @@ export default function AdminOverviewPage() {
 
   const fetchAdminData = async () => {
     try {
-      const [catRes, apprRes] = await Promise.all([
+      const [catRes, apprRes, aptRes, monRes] = await Promise.all([
         fetch('/api/v1/categories'),
-        fetch('/api/v1/admin/approvals')
+        fetch('/api/v1/admin/approvals'),
+        fetch('/api/v1/apartments'),
+        fetch('/api/v1/monetization')
       ]);
 
       if (catRes.ok) {
@@ -48,13 +50,25 @@ export default function AdminOverviewPage() {
         setCategories(catData.categories || []);
       }
 
+      let aptCount = 3;
+      if (aptRes.ok) {
+        const aptData = await aptRes.json();
+        aptCount = aptData.apartments?.length || 3;
+      }
+
+      let mrr = 0;
+      if (monRes.ok) {
+        const monData = await monRes.json();
+        mrr = monData.metrics?.mrr || 0;
+      }
+
       if (apprRes.ok) {
         const apprData = await apprRes.json();
         setStats({
           totalUsers: apprData.stats?.totalUsersCount || 8,
-          totalRequests: apprData.stats?.totalRequestsCount || 3,
-          totalListings: apprData.stats?.pendingListingsCount || 0,
-          totalCompleted: apprData.stats?.totalCompletedJobs || 1
+          totalApartments: aptCount,
+          totalMRR: mrr,
+          pendingItems: (apprData.pendingProviders?.length || 0) + (apprData.pendingListings?.length || 0) + (apprData.pendingBusinesses?.length || 0) + (apprData.pendingCampaigns?.length || 0)
         });
       }
     } catch (e) {
@@ -104,51 +118,112 @@ export default function AdminOverviewPage() {
           <div className="space-y-1.5">
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/20 text-amber-300 text-xs font-bold border border-amber-500/30">
               <ShieldAlert className="w-3.5 h-3.5" />
-              <span>Platform Administration Console</span>
+              <span>Enterprise Platform Administration</span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-black">
-              Palm Heights Society Control Center
+              Central SaaS Control Center
             </h1>
             <p className="text-xs sm:text-sm text-slate-300 max-w-xl">
-              Oversee community marketplace integrity, category configuration, provider authorizations, and verified residential security.
+              Oversee multi-apartment communities, monetization engines, provider verifications, and marketplace trust.
             </p>
           </div>
 
-          <Link
-            href="/admin/approvals"
-            className="px-5 py-3 rounded-2xl bg-amber-500 hover:bg-amber-600 text-amber-950 font-black text-xs sm:text-sm shadow-md transition-all shrink-0 flex items-center gap-2 active:scale-95"
-          >
-            <span>Open Approval Queue</span>
-            <ArrowRight className="w-4 h-4" />
-          </Link>
+          <div className="flex flex-wrap items-center gap-2">
+            <Link
+              href="/admin/apartments"
+              className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs shadow-xs transition-all flex items-center gap-1.5"
+            >
+              <Building2 className="w-3.5 h-3.5 text-blue-400" />
+              <span>Apartments</span>
+            </Link>
+            <Link
+              href="/admin/monetization"
+              className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs shadow-xs transition-all flex items-center gap-1.5"
+            >
+              <TrendingUp className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Monetization</span>
+            </Link>
+            <Link
+              href="/admin/approvals"
+              className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-amber-950 font-black text-xs shadow-md transition-all shrink-0 flex items-center gap-1.5 active:scale-95"
+            >
+              <span>Approval Queue ({stats.pendingItems || 0})</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
         </div>
       </div>
 
-      {/* KPI Stats */}
+      {/* Primary KPI Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
-          <div className="text-xs text-slate-400 font-semibold">Registered Campus Users</div>
-          <div className="text-2xl font-black text-slate-900 dark:text-white mt-1">{stats.totalUsers}</div>
-          <div className="text-[11px] text-slate-400 mt-0.5">Towers A, B, C & D</div>
+          <div className="text-xs text-slate-400 font-semibold">Active Communities</div>
+          <div className="text-2xl font-black text-blue-600 mt-1">{stats.totalApartments || 3}</div>
+          <div className="text-[11px] text-slate-400 mt-0.5">Isolated tenant databases</div>
         </div>
 
         <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
-          <div className="text-xs text-slate-400 font-semibold">Service Categories</div>
-          <div className="text-2xl font-black text-emerald-600 mt-1">{categories.length}</div>
-          <div className="text-[11px] text-slate-400 mt-0.5">Database driven catalogs</div>
+          <div className="text-xs text-slate-400 font-semibold">Recurring Revenue (MRR)</div>
+          <div className="text-2xl font-black text-emerald-600 mt-1">₹{stats.totalMRR || 0}</div>
+          <div className="text-[11px] text-slate-400 mt-0.5">Real paid subscriptions</div>
         </div>
 
         <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
-          <div className="text-xs text-slate-400 font-semibold">Total Service Requests</div>
-          <div className="text-2xl font-black text-blue-600 mt-1">{stats.totalRequests}</div>
-          <div className="text-[11px] text-slate-400 mt-0.5">Lifetime marketplace visits</div>
+          <div className="text-xs text-slate-400 font-semibold">Registered Users</div>
+          <div className="text-2xl font-black text-slate-900 dark:text-white mt-1">{stats.totalUsers || 8}</div>
+          <div className="text-[11px] text-slate-400 mt-0.5">5 distinct roles active</div>
         </div>
 
         <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
-          <div className="text-xs text-slate-400 font-semibold">Verified Completed Jobs</div>
-          <div className="text-2xl font-black text-purple-600 mt-1">{stats.totalCompleted}</div>
-          <div className="text-[11px] text-slate-400 mt-0.5">With resident reviews</div>
+          <div className="text-xs text-slate-400 font-semibold">Dynamic Categories</div>
+          <div className="text-2xl font-black text-purple-600 mt-1">{categories.length}</div>
+          <div className="text-[11px] text-slate-400 mt-0.5">Database-driven catalogs</div>
         </div>
+      </div>
+
+      {/* Module Quick Nav Hubs */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Link
+          href="/admin/apartments"
+          className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs hover:border-blue-400 transition-all group"
+        >
+          <div className="flex items-center justify-between mb-3">
+            <div className="w-10 h-10 rounded-2xl bg-blue-50 dark:bg-blue-950 flex items-center justify-center text-blue-600">
+              <Building2 className="w-5 h-5" />
+            </div>
+            <ChevronRight className="w-4 h-4 text-slate-400 group-hover:translate-x-1 transition-transform" />
+          </div>
+          <h3 className="font-extrabold text-sm text-slate-900 dark:text-white">Apartments Master</h3>
+          <p className="text-xs text-slate-500 mt-1">Configure multi-apartment communities, towers, units, gates, and society administrators.</p>
+        </Link>
+
+        <Link
+          href="/admin/monetization"
+          className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs hover:border-emerald-400 transition-all group"
+        >
+          <div className="flex items-center justify-between mb-3">
+            <div className="w-10 h-10 rounded-2xl bg-emerald-50 dark:bg-emerald-950 flex items-center justify-center text-emerald-600">
+              <TrendingUp className="w-5 h-5" />
+            </div>
+            <ChevronRight className="w-4 h-4 text-slate-400 group-hover:translate-x-1 transition-transform" />
+          </div>
+          <h3 className="font-extrabold text-sm text-slate-900 dark:text-white">Monetization Engine</h3>
+          <p className="text-xs text-slate-500 mt-1">Manage paid/unpaid provider & business tiers, view real MRR, ARPU, and cryptographic transactions.</p>
+        </Link>
+
+        <Link
+          href="/admin/approvals"
+          className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs hover:border-amber-400 transition-all group"
+        >
+          <div className="flex items-center justify-between mb-3">
+            <div className="w-10 h-10 rounded-2xl bg-amber-50 dark:bg-amber-950 flex items-center justify-center text-amber-600">
+              <ShieldAlert className="w-5 h-5" />
+            </div>
+            <ChevronRight className="w-4 h-4 text-slate-400 group-hover:translate-x-1 transition-transform" />
+          </div>
+          <h3 className="font-extrabold text-sm text-slate-900 dark:text-white">Verification & Trust Queue</h3>
+          <p className="text-xs text-slate-500 mt-1">Approve providers, service listings, local businesses, and sponsored ad campaigns.</p>
+        </Link>
       </div>
 
       {/* Database-Driven Dynamic Category Management */}

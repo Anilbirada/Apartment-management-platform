@@ -36,16 +36,25 @@ export async function GET(req: NextRequest) {
       orderBy: { createdAt: 'desc' }
     });
 
-    // 3. Pending Requirements (if any in review)
-    const pendingRequirements = await prisma.requirement.findMany({
-      where: { status: 'IN_REVIEW' },
+    // 3. Pending Local Businesses
+    const pendingBusinesses = await prisma.localBusiness.findMany({
+      where: { verificationStatus: 'PENDING' },
       include: {
-        resident: true
+        user: true
       },
       orderBy: { createdAt: 'desc' }
     });
 
-    // 4. Reported Content
+    // 4. Pending Advertising Campaigns
+    const pendingCampaigns = await prisma.businessCampaign.findMany({
+      where: { status: 'PENDING_APPROVAL' },
+      include: {
+        business: true
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    // 5. Reported Content
     const reports = await prisma.report.findMany({
       where: { status: 'PENDING' },
       include: {
@@ -60,11 +69,12 @@ export async function GET(req: NextRequest) {
     const stats = {
       pendingProvidersCount: pendingProviders.length,
       pendingListingsCount: pendingListings.length,
-      pendingRequirementsCount: pendingRequirements.length,
+      pendingBusinessesCount: pendingBusinesses.length,
+      pendingCampaignsCount: pendingCampaigns.length,
       pendingReportsCount: reports.length,
       totalUsersCount: await prisma.user.count(),
       totalRequestsCount: await prisma.serviceRequest.count(),
-      totalCompletedJobs: await prisma.serviceRequest.count({ where: { status: 'COMPLETED' } })
+      totalCompletedJobs: await prisma.serviceRequest.count({ where: { status: { in: ['COMPLETED', 'REVIEWED'] } } })
     };
 
     return NextResponse.json({
@@ -72,7 +82,8 @@ export async function GET(req: NextRequest) {
       stats,
       pendingProviders,
       pendingListings,
-      pendingRequirements,
+      pendingBusinesses,
+      pendingCampaigns,
       reports
     });
   } catch (error: any) {
@@ -88,11 +99,10 @@ export async function POST(req: NextRequest) {
     }
 
     const {
-      targetType, // 'PROVIDER' | 'LISTING' | 'REPORT' | 'REQUIREMENT'
+      targetType, // 'PROVIDER' | 'LISTING' | 'REPORT' | 'BUSINESS' | 'CAMPAIGN'
       targetId,
       action, // 'APPROVE' | 'REJECT' | 'RESOLVE' | 'DISMISS'
-      reason,
-      badgeType // 'ADMIN_APPROVED_PROVIDER' | 'VERIFIED_PROVIDER'
+      reason
     } = await req.json();
 
     if (!targetType || !targetId || !action) {
@@ -115,19 +125,16 @@ export async function POST(req: NextRequest) {
         include: { user: true }
       });
 
-      // Also mark user as verified if approved
       await prisma.user.update({
         where: { id: updated.userId },
         data: { isVerified: isApprove }
       });
 
-      // Update provider document statuses
       await prisma.providerDocument.updateMany({
         where: { providerProfileId: targetId },
         data: { status: isApprove ? 'APPROVED' : 'REJECTED' }
       });
 
-      // Also publish any pending listings for this approved provider
       if (isApprove) {
         await prisma.serviceListing.updateMany({
           where: { providerProfileId: targetId, status: 'PENDING_APPROVAL' },
@@ -135,7 +142,6 @@ export async function POST(req: NextRequest) {
         });
       }
 
-      // Record audit history
       await prisma.adminApproval.create({
         data: {
           targetType: 'PROVIDER_PROFILE',
@@ -146,7 +152,6 @@ export async function POST(req: NextRequest) {
         }
       });
 
-      // Notify the provider
       await prisma.notification.create({
         data: {
           userId: updated.userId,
@@ -162,6 +167,86 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true, message: `Provider ${isApprove ? 'approved' : 'rejected'}` });
     }
 
+    if (targetType === 'BUSINESS') {
+      const isApprove = action === 'APPROVE';
+      const updated = await prisma.localBusiness.update({
+        where: { id: targetId },
+        data: {
+          isApproved: isApprove,
+          verificationStatus: isApprove ? 'APPROVED' : 'REJECTED',
+          status: isApprove ? 'ACTIVE' : 'SUSPENDED'
+        },
+        include: { user: true }
+      });
+
+      await prisma.user.update({
+        where: { id: updated.userId },
+        data: { isVerified: isApprove }
+      });
+
+      await prisma.adminApproval.create({
+        data: {
+          targetType: 'LOCAL_BUSINESS',
+          targetId,
+          adminId: user.id,
+          decision: isApprove ? 'APPROVED' : 'REJECTED',
+          reason: reason || null
+        }
+      });
+
+      await prisma.notification.create({
+        data: {
+          userId: updated.userId,
+          type: 'PROVIDER_APPROVAL',
+          title: isApprove ? '🎉 Local Business Profile Approved!' : 'Business Profile Status Update',
+          message: isApprove
+            ? `Your business "${updated.businessName}" has been verified and listed in the community directory.`
+            : `Your business application was not approved. Reason: ${reason}`,
+          link: '/business/dashboard'
+        }
+      });
+
+      return NextResponse.json({ success: true, message: `Business ${isApprove ? 'approved' : 'rejected'}` });
+    }
+
+    if (targetType === 'CAMPAIGN') {
+      const isApprove = action === 'APPROVE';
+      const updated = await prisma.businessCampaign.update({
+        where: { id: targetId },
+        data: {
+          status: isApprove ? 'ACTIVE' : 'REJECTED',
+          rejectionReason: !isApprove ? reason : null,
+          approvedById: user.id,
+          approvedAt: new Date()
+        },
+        include: { business: true }
+      });
+
+      await prisma.adminApproval.create({
+        data: {
+          targetType: 'BUSINESS_CAMPAIGN',
+          targetId,
+          adminId: user.id,
+          decision: isApprove ? 'APPROVED' : 'REJECTED',
+          reason: reason || null
+        }
+      });
+
+      await prisma.notification.create({
+        data: {
+          userId: updated.business.userId,
+          type: 'CAMPAIGN_APPROVAL',
+          title: isApprove ? '🚀 Promotional Campaign Approved & Active!' : 'Campaign Review Update',
+          message: isApprove
+            ? `Your campaign "${updated.title}" is now displaying to apartment residents free of charge.`
+            : `Your campaign "${updated.title}" was not approved. Reason: ${reason}`,
+          link: '/business/dashboard'
+        }
+      });
+
+      return NextResponse.json({ success: true, message: `Campaign ${isApprove ? 'approved' : 'rejected'}` });
+    }
+
     if (targetType === 'LISTING') {
       const isApprove = action === 'APPROVE';
       const updated = await prisma.serviceListing.update({
@@ -175,7 +260,6 @@ export async function POST(req: NextRequest) {
         }
       });
 
-      // Record audit
       await prisma.adminApproval.create({
         data: {
           targetType: 'SERVICE_LISTING',
@@ -186,7 +270,6 @@ export async function POST(req: NextRequest) {
         }
       });
 
-      // Notify provider
       await prisma.notification.create({
         data: {
           userId: updated.providerProfile.user.id,
