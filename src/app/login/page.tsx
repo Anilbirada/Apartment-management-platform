@@ -20,6 +20,7 @@ import {
   Smartphone
 } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
+import { getDashboardForRole } from '@/lib/roles';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -97,12 +98,8 @@ export default function LoginPage() {
       router.push(redirectPath);
       return;
     }
-    if (user.role === 'GUEST') router.push('/guest/dashboard');
-    else if (user.role === 'PROVIDER') router.push('/provider/dashboard');
-    else if (user.role === 'BUSINESS') router.push('/business/dashboard');
-    else if (user.role === 'MANAGEMENT') router.push('/management/dashboard');
-    else if (user.role === 'ADMIN') router.push('/admin');
-    else router.push('/');
+    const targetDashboard = getDashboardForRole(user.role);
+    router.push(targetDashboard);
   };
 
   const handleCustomLogin = async (e: React.FormEvent) => {
@@ -242,12 +239,7 @@ export default function LoginPage() {
       setLoading(true);
       await switchRole(targetRole);
       if (redirectPath) router.push(redirectPath);
-      else if (targetRole === 'GUEST') router.push('/guest/dashboard');
-      else if (targetRole === 'PROVIDER') router.push('/provider/dashboard');
-      else if (targetRole === 'BUSINESS') router.push('/business/dashboard');
-      else if (targetRole === 'MANAGEMENT') router.push('/management/dashboard');
-      else if (targetRole === 'ADMIN') router.push('/admin');
-      else router.push('/');
+      else router.push(getDashboardForRole(targetRole));
     } catch (e) {
       console.error(e);
     } finally {

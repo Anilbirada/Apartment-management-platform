@@ -23,6 +23,26 @@ function parseJwtPayload(token: string) {
   }
 }
 
+function normalizeRole(role?: string | null): string {
+  if (!role) return 'GUEST';
+  const upper = role.toUpperCase().trim();
+  if (upper === 'SERVICE_PROVIDER' || upper === 'PROVIDER') return 'PROVIDER';
+  if (upper === 'SOCIETY_MANAGEMENT' || upper === 'MANAGEMENT') return 'MANAGEMENT';
+  if (upper === 'LOCAL_BUSINESS' || upper === 'BUSINESS') return 'BUSINESS';
+  if (upper === 'PLATFORM_ADMIN' || upper === 'ADMIN') return 'ADMIN';
+  if (upper === 'RESIDENT') return 'RESIDENT';
+  return 'GUEST';
+}
+
+const ROLE_DASHBOARDS: Record<string, string> = {
+  GUEST: '/guest/dashboard',
+  RESIDENT: '/resident/dashboard',
+  PROVIDER: '/provider/dashboard',
+  BUSINESS: '/business/dashboard',
+  MANAGEMENT: '/management/dashboard',
+  ADMIN: '/admin/dashboard'
+};
+
 export function middleware(req: NextRequest) {
   const { pathname, search } = req.nextUrl;
 
@@ -36,10 +56,6 @@ export function middleware(req: NextRequest) {
   ) {
     return NextResponse.next();
   }
-
-  // Public visitor allowed paths
-  const publicPaths = ['/', '/login', '/register', '/about', '/contact'];
-  const isExactPublicPath = publicPaths.includes(pathname);
 
   // Protected Marketplace and User Portal Routes
   const isMarketplaceRoute =
@@ -60,8 +76,10 @@ export function middleware(req: NextRequest) {
 
   const token = req.cookies.get('token')?.value;
   const user = token ? parseJwtPayload(token) : null;
+  const role = normalizeRole(user?.role);
+  const userDashboard = ROLE_DASHBOARDS[role] || '/guest/dashboard';
 
-  // Unauthenticated user attempting to access restricted content
+  // 1. Unauthenticated visitor attempting to access restricted marketplace or portal
   if (!user && (isMarketplaceRoute || isPortalRoute)) {
     const loginUrl = new URL('/login', req.url);
     loginUrl.searchParams.set('redirect', pathname + (search || ''));
@@ -72,48 +90,46 @@ export function middleware(req: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  // If user is logged in, enforce Role-Based Navigation & Route Access (Requirement 14 & TEST 10)
-  if (user) {
-    const role = user.role?.toUpperCase();
+  // 2. Authenticated user visiting /login directly -> redirect to their authorized dashboard
+  if (user && pathname === '/login' && !search.includes('redirect')) {
+    return NextResponse.redirect(new URL(userDashboard, req.url));
+  }
 
-    // Map each role to their authorized dashboard
-    const roleHomeMap: Record<string, string> = {
-      GUEST: '/guest/dashboard',
-      RESIDENT: '/',
-      PROVIDER: '/provider/dashboard',
-      BUSINESS: '/business/dashboard',
-      MANAGEMENT: '/management/dashboard',
-      ADMIN: '/admin/dashboard'
-    };
+  // 3. Authenticated Role Boundary Enforcement
+  if (user) {
+    // Platform Admin has global oversight across all dashboards
+    if (role === 'ADMIN') {
+      return NextResponse.next();
+    }
 
     // Prevent non-admin from accessing /admin routes
     if (pathname.startsWith('/admin') && role !== 'ADMIN') {
-      const dest = roleHomeMap[role] || '/';
-      return NextResponse.redirect(new URL(dest, req.url));
+      return NextResponse.redirect(new URL(userDashboard, req.url));
     }
 
-    // Prevent non-management from accessing /management routes (Admin allowed)
-    if (pathname.startsWith('/management') && role !== 'MANAGEMENT' && role !== 'ADMIN') {
-      const dest = roleHomeMap[role] || '/';
-      return NextResponse.redirect(new URL(dest, req.url));
+    // Prevent non-management from accessing /management routes
+    if (pathname.startsWith('/management') && role !== 'MANAGEMENT') {
+      return NextResponse.redirect(new URL(userDashboard, req.url));
     }
 
-    // Prevent non-provider from accessing /provider routes (Admin allowed)
-    if (pathname.startsWith('/provider') && role !== 'PROVIDER' && role !== 'ADMIN') {
-      const dest = roleHomeMap[role] || '/';
-      return NextResponse.redirect(new URL(dest, req.url));
+    // Prevent non-provider from accessing /provider routes
+    if (pathname.startsWith('/provider') && role !== 'PROVIDER') {
+      return NextResponse.redirect(new URL(userDashboard, req.url));
     }
 
-    // Prevent non-business from accessing /business routes (Admin allowed)
-    if (pathname.startsWith('/business') && role !== 'BUSINESS' && role !== 'ADMIN') {
-      const dest = roleHomeMap[role] || '/';
-      return NextResponse.redirect(new URL(dest, req.url));
+    // Prevent non-business from accessing /business routes
+    if (pathname.startsWith('/business') && role !== 'BUSINESS') {
+      return NextResponse.redirect(new URL(userDashboard, req.url));
     }
 
-    // Prevent non-guest from accessing /guest routes (Admin allowed)
-    if (pathname.startsWith('/guest') && role !== 'GUEST' && role !== 'ADMIN') {
-      const dest = roleHomeMap[role] || '/';
-      return NextResponse.redirect(new URL(dest, req.url));
+    // Prevent non-resident from accessing /resident routes
+    if (pathname.startsWith('/resident') && role !== 'RESIDENT') {
+      return NextResponse.redirect(new URL(userDashboard, req.url));
+    }
+
+    // Prevent elevated roles from accessing guest portal (they have their own dashboard)
+    if (pathname.startsWith('/guest') && role !== 'GUEST') {
+      return NextResponse.redirect(new URL(userDashboard, req.url));
     }
   }
 

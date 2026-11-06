@@ -29,6 +29,7 @@ import {
   SlidersHorizontal
 } from 'lucide-react';
 import { themeTokens } from '@/lib/theme';
+import { getDashboardForRole, getRoleLabel, toCanonicalRole } from '@/lib/roles';
 
 export function Navbar() {
   const pathname = usePathname();
@@ -43,6 +44,8 @@ export function Navbar() {
     switchRole,
     logout
   } = useApp();
+
+  const canonicalRole = user ? toCanonicalRole(user.role) : null;
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [roleMenuOpen, setRoleMenuOpen] = useState(false);
@@ -103,7 +106,7 @@ export function Navbar() {
           
           {/* Logo & Community Identity */}
           <div className="flex items-center gap-3">
-            <Link href="/" className="flex items-center gap-2.5 group">
+            <Link href={user ? getDashboardForRole(user.role) : '/'} className="flex items-center gap-2.5 group">
               <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-700 to-emerald-500 flex items-center justify-center text-white shadow-md group-hover:scale-105 transition-transform">
                 <Building2 className="w-5 h-5" />
               </div>
@@ -126,31 +129,19 @@ export function Navbar() {
 
           {/* Desktop Navigation Links */}
           <nav className="hidden md:flex items-center space-x-1 lg:space-x-1.5">
-            <Link
-              href="/"
-              className={`px-2.5 py-1.5 rounded-lg text-xs lg:text-sm font-medium transition-all ${
-                pathname === '/'
-                  ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 font-semibold'
-                  : 'text-slate-600 dark:text-slate-300 hover:text-emerald-700 hover:bg-slate-50 dark:hover:bg-slate-800/40'
-              }`}
-            >
-              {t.home}
-            </Link>
-
-            <Link
-              href="/services"
-              className={`px-2.5 py-1.5 rounded-lg text-xs lg:text-sm font-medium transition-all ${
-                pathname.startsWith('/services')
-                  ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 font-semibold'
-                  : 'text-slate-600 dark:text-slate-300 hover:text-emerald-700 hover:bg-slate-50 dark:hover:bg-slate-800/40'
-              }`}
-            >
-              {t.services}
-            </Link>
-
             {/* 1. PUBLIC VISITOR */}
             {!user && (
               <>
+                <Link
+                  href="/"
+                  className={`px-2.5 py-1.5 rounded-lg text-xs lg:text-sm font-medium transition-all ${
+                    pathname === '/'
+                      ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 font-semibold'
+                      : 'text-slate-600 dark:text-slate-300 hover:text-emerald-700 hover:bg-slate-50 dark:hover:bg-slate-800/40'
+                  }`}
+                >
+                  {t.home}
+                </Link>
                 <Link
                   href="/services"
                   className={`px-2.5 py-1.5 rounded-lg text-xs lg:text-sm font-medium transition-all ${
@@ -183,7 +174,7 @@ export function Navbar() {
             )}
 
             {/* 2. AUTHENTICATED GUEST */}
-            {user?.role === 'GUEST' && (
+            {user && canonicalRole === 'GUEST' && (
               <>
                 <Link
                   href="/guest/dashboard"
@@ -194,7 +185,7 @@ export function Navbar() {
                   }`}
                 >
                   <Sparkles className="w-3.5 h-3.5" />
-                  <span>Guest Portal</span>
+                  <span>Dashboard</span>
                 </Link>
                 <Link
                   href="/services"
@@ -207,8 +198,12 @@ export function Navbar() {
                   {t.services}
                 </Link>
                 <Link
-                  href="/#businesses"
-                  className="px-2.5 py-1.5 rounded-lg text-xs lg:text-sm font-medium text-slate-600 dark:text-slate-300 hover:text-emerald-700 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-all"
+                  href="/businesses"
+                  className={`px-2.5 py-1.5 rounded-lg text-xs lg:text-sm font-medium transition-all ${
+                    pathname.startsWith('/businesses')
+                      ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 font-semibold'
+                      : 'text-slate-600 dark:text-slate-300 hover:text-emerald-700 hover:bg-slate-50 dark:hover:bg-slate-800/40'
+                  }`}
                 >
                   Local Businesses
                 </Link>
@@ -222,8 +217,19 @@ export function Navbar() {
             )}
 
             {/* 3. APARTMENT RESIDENT */}
-            {user?.role === 'RESIDENT' && (
+            {user && canonicalRole === 'RESIDENT' && (
               <>
+                <Link
+                  href="/resident/dashboard"
+                  className={`px-2.5 py-1.5 rounded-lg text-xs lg:text-sm font-bold flex items-center gap-1.5 ${
+                    pathname === '/resident/dashboard'
+                      ? 'bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-300'
+                      : 'text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40'
+                  }`}
+                >
+                  <Building2 className="w-3.5 h-3.5" />
+                  <span>Home</span>
+                </Link>
                 <Link
                   href="/services"
                   className={`px-2.5 py-1.5 rounded-lg text-xs lg:text-sm font-medium transition-all ${
@@ -233,17 +239,6 @@ export function Navbar() {
                   }`}
                 >
                   {t.services}
-                </Link>
-                <Link
-                  href="/requirements"
-                  className={`px-2.5 py-1.5 rounded-lg text-xs lg:text-sm font-medium transition-all flex items-center gap-1 ${
-                    pathname.startsWith('/requirements')
-                      ? 'bg-purple-100 text-purple-900 dark:bg-purple-950/70 dark:text-purple-300 font-bold border border-purple-200 dark:border-purple-800'
-                      : 'text-purple-700 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/40'
-                  }`}
-                >
-                  <Briefcase className="w-3.5 h-3.5" />
-                  <span>Hire Helpers</span>
                 </Link>
                 <Link
                   href="/requests"
@@ -266,11 +261,32 @@ export function Navbar() {
                   <MessageSquare className="w-3.5 h-3.5" />
                   <span>{t.messages}</span>
                 </Link>
+                <Link
+                  href="/businesses"
+                  className={`px-2.5 py-1.5 rounded-lg text-xs lg:text-sm font-medium transition-all ${
+                    pathname.startsWith('/businesses')
+                      ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 font-semibold'
+                      : 'text-slate-600 dark:text-slate-300 hover:text-emerald-700 hover:bg-slate-50 dark:hover:bg-slate-800/40'
+                  }`}
+                >
+                  Local Businesses
+                </Link>
+                <Link
+                  href="/requirements"
+                  className={`px-2.5 py-1.5 rounded-lg text-xs lg:text-sm font-medium transition-all flex items-center gap-1 ${
+                    pathname.startsWith('/requirements')
+                      ? 'bg-purple-100 text-purple-900 dark:bg-purple-950/70 dark:text-purple-300 font-bold border border-purple-200 dark:border-purple-800'
+                      : 'text-purple-700 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/40'
+                  }`}
+                >
+                  <Briefcase className="w-3.5 h-3.5" />
+                  <span>Hire Helpers</span>
+                </Link>
               </>
             )}
 
             {/* 4. SERVICE PROVIDER */}
-            {user?.role === 'PROVIDER' && (
+            {user && canonicalRole === 'SERVICE_PROVIDER' && (
               <>
                 <Link
                   href="/provider/dashboard"
@@ -282,6 +298,16 @@ export function Navbar() {
                 >
                   <Wrench className="w-3.5 h-3.5" />
                   <span>Provider Hub</span>
+                </Link>
+                <Link
+                  href="/provider/post-service"
+                  className={`px-2.5 py-1.5 rounded-lg text-xs lg:text-sm font-medium transition-all ${
+                    pathname.startsWith('/provider/post-service')
+                      ? 'bg-blue-50 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300 font-semibold'
+                      : 'text-slate-600 dark:text-slate-300 hover:text-blue-700 hover:bg-slate-50'
+                  }`}
+                >
+                  My Services
                 </Link>
                 <Link
                   href="/requests"
@@ -308,7 +334,7 @@ export function Navbar() {
             )}
 
             {/* 5. LOCAL BUSINESS */}
-            {user?.role === 'BUSINESS' && (
+            {user && canonicalRole === 'LOCAL_BUSINESS' && (
               <>
                 <Link
                   href="/business/dashboard"
@@ -320,6 +346,12 @@ export function Navbar() {
                 >
                   <Store className="w-3.5 h-3.5" />
                   <span>Business Hub</span>
+                </Link>
+                <Link
+                  href="/business/dashboard#campaigns"
+                  className="px-2.5 py-1.5 rounded-lg text-xs lg:text-sm font-medium text-slate-600 dark:text-slate-300 hover:text-teal-700 hover:bg-slate-50"
+                >
+                  Campaigns
                 </Link>
                 <Link
                   href="/messages"
@@ -336,7 +368,7 @@ export function Navbar() {
             )}
 
             {/* 6. SOCIETY MANAGEMENT */}
-            {user?.role === 'MANAGEMENT' && (
+            {user && canonicalRole === 'SOCIETY_MANAGEMENT' && (
               <>
                 <Link
                   href="/management/dashboard"
@@ -350,10 +382,22 @@ export function Navbar() {
                   <span>Society Portal</span>
                 </Link>
                 <Link
-                  href="/management/residents"
+                  href="/management/dashboard#residents"
                   className="px-2.5 py-1.5 rounded-lg text-xs lg:text-sm font-medium text-slate-600 dark:text-slate-300 hover:text-purple-700 hover:bg-slate-50 dark:hover:bg-slate-800/40"
                 >
                   Residents
+                </Link>
+                <Link
+                  href="/management/dashboard#approvals"
+                  className="px-2.5 py-1.5 rounded-lg text-xs lg:text-sm font-medium text-slate-600 dark:text-slate-300 hover:text-purple-700 hover:bg-slate-50 dark:hover:bg-slate-800/40"
+                >
+                  Approvals
+                </Link>
+                <Link
+                  href="/management/dashboard#reports"
+                  className="px-2.5 py-1.5 rounded-lg text-xs lg:text-sm font-medium text-slate-600 dark:text-slate-300 hover:text-purple-700 hover:bg-slate-50 dark:hover:bg-slate-800/40"
+                >
+                  Reports
                 </Link>
                 <Link
                   href="/messages"
@@ -365,18 +409,28 @@ export function Navbar() {
             )}
 
             {/* 7. PLATFORM ADMIN */}
-            {user?.role === 'ADMIN' && (
+            {user && canonicalRole === 'PLATFORM_ADMIN' && (
               <>
                 <Link
-                  href="/admin"
+                  href="/admin/dashboard"
                   className={`px-2.5 py-1.5 rounded-lg text-xs lg:text-sm font-bold flex items-center gap-1 ${
-                    pathname === '/admin'
+                    pathname === '/admin/dashboard' || pathname === '/admin'
                       ? 'bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-300'
                       : 'text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40'
                   }`}
                 >
                   <ShieldAlert className="w-3.5 h-3.5" />
-                  <span>Overview</span>
+                  <span>Dashboard</span>
+                </Link>
+                <Link
+                  href="/admin/apartments"
+                  className={`px-2 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1 ${
+                    pathname.startsWith('/admin/apartments')
+                      ? 'bg-amber-100 text-amber-900 font-bold'
+                      : 'text-slate-600 dark:text-slate-300 hover:bg-slate-50'
+                  }`}
+                >
+                  <span>Apartments</span>
                 </Link>
                 <Link
                   href="/admin/approvals"
@@ -438,19 +492,19 @@ export function Navbar() {
           <div className="flex items-center gap-2 sm:gap-2.5">
             
             {/* Authenticated Role Indicator / Admin Simulation */}
-            {user && user.role !== 'ADMIN' && (
+            {user && canonicalRole !== 'PLATFORM_ADMIN' && (
               <div
                 className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-semibold bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 cursor-default select-none shadow-2xs"
-                title={`Authenticated role: ${roleLabels[user.role]?.label || user.role}`}
+                title={`Authenticated role: ${getRoleLabel(user.role)}`}
               >
                 <span className="text-slate-400 dark:text-slate-500 font-normal hidden sm:inline">Role:</span>
                 <span className="font-bold text-slate-800 dark:text-slate-200">
-                  {roleLabels[user.role]?.label || user.role}
+                  {getRoleLabel(user.role)}
                 </span>
               </div>
             )}
 
-            {user && user.role === 'ADMIN' && (
+            {user && canonicalRole === 'PLATFORM_ADMIN' && (
               <div className="relative">
                 <button
                   onClick={() => setRoleMenuOpen(!roleMenuOpen)}
@@ -654,23 +708,22 @@ export function Navbar() {
       {/* Mobile Drawer Menu */}
       {mobileMenuOpen && (
         <div className="md:hidden border-t border-slate-200 dark:border-slate-800 px-4 py-3 space-y-2 bg-white dark:bg-slate-900 shadow-xl">
-          <Link
-            href="/"
-            onClick={() => setMobileMenuOpen(false)}
-            className="block px-3 py-2 rounded-lg text-sm font-medium hover:bg-slate-50 dark:hover:bg-slate-800"
-          >
-            {t.home}
-          </Link>
-          <Link
-            href="/services"
-            onClick={() => setMobileMenuOpen(false)}
-            className="block px-3 py-2 rounded-lg text-sm font-medium hover:bg-slate-50 dark:hover:bg-slate-800"
-          >
-            {t.services}
-          </Link>
-
           {!user ? (
             <>
+              <Link
+                href="/"
+                onClick={() => setMobileMenuOpen(false)}
+                className="block px-3 py-2 rounded-lg text-sm font-medium hover:bg-slate-50 dark:hover:bg-slate-800"
+              >
+                {t.home}
+              </Link>
+              <Link
+                href="/services"
+                onClick={() => setMobileMenuOpen(false)}
+                className="block px-3 py-2 rounded-lg text-sm font-medium hover:bg-slate-50 dark:hover:bg-slate-800"
+              >
+                {t.services}
+              </Link>
               <Link
                 href="/#businesses"
                 onClick={() => setMobileMenuOpen(false)}
@@ -709,14 +762,14 @@ export function Navbar() {
                 </Link>
               </div>
             </>
-          ) : user?.role === 'GUEST' ? (
+          ) : canonicalRole === 'GUEST' ? (
             <>
               <Link
                 href="/guest/dashboard"
                 onClick={() => setMobileMenuOpen(false)}
                 className="block px-3 py-2 rounded-lg text-sm font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40"
               >
-                Guest Portal & Tracker
+                Dashboard
               </Link>
               <Link
                 href="/guest/dashboard#upgrades"
@@ -726,21 +779,42 @@ export function Navbar() {
                 Upgrade Membership
               </Link>
               <Link
-                href="/#businesses"
+                href="/guest/dashboard#applications"
+                onClick={() => setMobileMenuOpen(false)}
+                className="block px-3 py-2 rounded-lg text-sm font-medium hover:bg-slate-50 dark:hover:bg-slate-800"
+              >
+                My Applications
+              </Link>
+              <Link
+                href="/services"
+                onClick={() => setMobileMenuOpen(false)}
+                className="block px-3 py-2 rounded-lg text-sm font-medium hover:bg-slate-50 dark:hover:bg-slate-800"
+              >
+                Services
+              </Link>
+              <Link
+                href="/businesses"
                 onClick={() => setMobileMenuOpen(false)}
                 className="block px-3 py-2 rounded-lg text-sm font-medium hover:bg-slate-50 dark:hover:bg-slate-800"
               >
                 Local Businesses
               </Link>
             </>
-          ) : user?.role === 'RESIDENT' ? (
+          ) : canonicalRole === 'RESIDENT' ? (
             <>
               <Link
-                href="/requirements"
+                href="/resident/dashboard"
                 onClick={() => setMobileMenuOpen(false)}
-                className="block px-3 py-2 rounded-lg text-sm font-bold text-purple-700 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/40"
+                className="block px-3 py-2 rounded-lg text-sm font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40"
               >
-                Hire Helpers (Requirements)
+                Home
+              </Link>
+              <Link
+                href="/services"
+                onClick={() => setMobileMenuOpen(false)}
+                className="block px-3 py-2 rounded-lg text-sm font-medium hover:bg-slate-50 dark:hover:bg-slate-800"
+              >
+                {t.services}
               </Link>
               <Link
                 href="/requests"
@@ -756,10 +830,22 @@ export function Navbar() {
               >
                 {t.messages}
               </Link>
+              <Link
+                href="/businesses"
+                onClick={() => setMobileMenuOpen(false)}
+                className="block px-3 py-2 rounded-lg text-sm font-medium hover:bg-slate-50 dark:hover:bg-slate-800"
+              >
+                Local Businesses
+              </Link>
+              <Link
+                href="/requirements"
+                onClick={() => setMobileMenuOpen(false)}
+                className="block px-3 py-2 rounded-lg text-sm font-bold text-purple-700 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/40"
+              >
+                Hire Helpers (Requirements)
+              </Link>
             </>
-          ) : null}
-
-          {user?.role === 'PROVIDER' && (
+          ) : canonicalRole === 'SERVICE_PROVIDER' ? (
             <>
               <Link
                 href="/provider/dashboard"
@@ -767,6 +853,13 @@ export function Navbar() {
                 className="block px-3 py-2 rounded-lg text-sm font-semibold text-blue-600 bg-blue-50 dark:bg-blue-950/40"
               >
                 Provider Hub
+              </Link>
+              <Link
+                href="/provider/post-service"
+                onClick={() => setMobileMenuOpen(false)}
+                className="block px-3 py-2 rounded-lg text-sm font-medium hover:bg-slate-50 dark:hover:bg-slate-800"
+              >
+                My Services
               </Link>
               <Link
                 href="/requests"
@@ -783,9 +876,7 @@ export function Navbar() {
                 Messages
               </Link>
             </>
-          )}
-
-          {user?.role === 'BUSINESS' && (
+          ) : canonicalRole === 'LOCAL_BUSINESS' ? (
             <>
               <Link
                 href="/business/dashboard"
@@ -795,6 +886,13 @@ export function Navbar() {
                 Local Business Hub
               </Link>
               <Link
+                href="/business/dashboard#campaigns"
+                onClick={() => setMobileMenuOpen(false)}
+                className="block px-3 py-2 rounded-lg text-sm font-medium hover:bg-slate-50 dark:hover:bg-slate-800"
+              >
+                Campaigns
+              </Link>
+              <Link
                 href="/messages"
                 onClick={() => setMobileMenuOpen(false)}
                 className="block px-3 py-2 rounded-lg text-sm font-medium hover:bg-slate-50 dark:hover:bg-slate-800"
@@ -802,9 +900,7 @@ export function Navbar() {
                 Messages
               </Link>
             </>
-          )}
-
-          {user?.role === 'MANAGEMENT' && (
+          ) : canonicalRole === 'SOCIETY_MANAGEMENT' ? (
             <>
               <Link
                 href="/management/dashboard"
@@ -814,11 +910,25 @@ export function Navbar() {
                 Society Management Portal
               </Link>
               <Link
-                href="/management/residents"
+                href="/management/dashboard#residents"
                 onClick={() => setMobileMenuOpen(false)}
                 className="block px-3 py-2 rounded-lg text-sm font-medium hover:bg-slate-50 dark:hover:bg-slate-800"
               >
                 Resident Directory
+              </Link>
+              <Link
+                href="/management/dashboard#approvals"
+                onClick={() => setMobileMenuOpen(false)}
+                className="block px-3 py-2 rounded-lg text-sm font-medium hover:bg-slate-50 dark:hover:bg-slate-800"
+              >
+                Approvals
+              </Link>
+              <Link
+                href="/management/dashboard#reports"
+                onClick={() => setMobileMenuOpen(false)}
+                className="block px-3 py-2 rounded-lg text-sm font-medium hover:bg-slate-50 dark:hover:bg-slate-800"
+              >
+                Reports
               </Link>
               <Link
                 href="/messages"
@@ -828,16 +938,21 @@ export function Navbar() {
                 Messages
               </Link>
             </>
-          )}
-
-          {user?.role === 'ADMIN' && (
+          ) : canonicalRole === 'PLATFORM_ADMIN' ? (
             <>
               <Link
-                href="/admin"
+                href="/admin/dashboard"
                 onClick={() => setMobileMenuOpen(false)}
                 className="block px-3 py-2 rounded-lg text-sm font-semibold text-amber-600 bg-amber-50 dark:bg-amber-950/40"
               >
-                Overview
+                Dashboard
+              </Link>
+              <Link
+                href="/admin/apartments"
+                onClick={() => setMobileMenuOpen(false)}
+                className="block px-3 py-2 rounded-lg text-sm font-semibold hover:bg-slate-50"
+              >
+                Apartments
               </Link>
               <Link
                 href="/admin/approvals"
@@ -875,7 +990,7 @@ export function Navbar() {
                 Monetization & Revenue
               </Link>
             </>
-          )}
+          ) : null}
         </div>
       )}
     </header>

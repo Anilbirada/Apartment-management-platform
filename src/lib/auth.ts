@@ -4,7 +4,17 @@ import { prisma } from './prisma';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-jwt-token-apartment-management-saas-2026';
 
-export type UserRole = 'GUEST' | 'RESIDENT' | 'PROVIDER' | 'MANAGEMENT' | 'BUSINESS' | 'ADMIN';
+export type UserRole =
+  | 'GUEST'
+  | 'RESIDENT'
+  | 'PROVIDER'
+  | 'MANAGEMENT'
+  | 'BUSINESS'
+  | 'ADMIN'
+  | 'SERVICE_PROVIDER'
+  | 'SOCIETY_MANAGEMENT'
+  | 'LOCAL_BUSINESS'
+  | 'PLATFORM_ADMIN';
 
 export interface TokenPayload {
   userId: string;
