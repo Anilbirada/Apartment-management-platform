@@ -8,6 +8,37 @@ export async function GET(req: NextRequest) {
     const query = searchParams.get('q');
     const categoryId = searchParams.get('categoryId');
     const status = searchParams.get('status') || 'PUBLISHED';
+    const isSummary = searchParams.get('summary') === 'true' || searchParams.get('publicSummary') === 'true';
+
+    // REQUIREMENT 11 & MARKETPLACE PRIVACY RULE:
+    // Unauthenticated visitors may only view aggregate categories/counts.
+    // Full service catalog requires authentication.
+    const currentUser = await getCurrentUser(req);
+    if (!currentUser && !isSummary) {
+      return NextResponse.json(
+        {
+          error: 'AUTHENTICATION_REQUIRED',
+          message: 'Please log in to explore services and local businesses in your community.'
+        },
+        { status: 401 }
+      );
+    }
+
+    if (!currentUser && isSummary) {
+      const totalCount = await prisma.serviceListing.count({
+        where: { status: 'PUBLISHED' }
+      });
+      const categories = await prisma.category.findMany({
+        where: { isActive: true },
+        select: { id: true, name: true, slug: true, icon: true }
+      });
+      return NextResponse.json({
+        success: true,
+        summary: true,
+        totalServices: totalCount,
+        categories
+      });
+    }
 
     const where: any = {};
     if (status) where.status = status;

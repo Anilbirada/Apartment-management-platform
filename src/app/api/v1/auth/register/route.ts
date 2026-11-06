@@ -81,6 +81,59 @@ export async function POST(req: NextRequest) {
     const salt = await bcrypt.genSalt(10);
     const passwordHash = await bcrypt.hash(password, salt);
 
+    if (role === 'GUEST') {
+      // REQUIREMENT 11 & STATE B: AUTHENTICATED GUEST
+      // Create a guest account with no elevated apartment/management permissions
+      const user = await prisma.user.create({
+        data: {
+          email: normEmail,
+          phone: normPhone,
+          passwordHash,
+          name,
+          role: 'GUEST',
+          isVerified: true,
+          status: 'ACTIVE',
+          communityId: targetCommunity?.id || null,
+          avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(name)}`
+        }
+      });
+
+      const token = signToken({
+        userId: user.id,
+        email: user.email,
+        phone: user.phone,
+        role: 'GUEST',
+        communityId: targetCommunity?.id || undefined,
+        name: user.name
+      });
+
+      const res = NextResponse.json({
+        success: true,
+        message: 'Guest account created successfully. Welcome to the community!',
+        token,
+        user: {
+          id: user.id,
+          email: user.email,
+          phone: user.phone,
+          name: user.name,
+          role: user.role,
+          avatar: user.avatar,
+          isVerified: user.isVerified,
+          status: user.status
+        }
+      });
+
+      res.cookies.set('token', token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        path: '/',
+        maxAge: 7 * 24 * 60 * 60
+      });
+
+      return res;
+    }
+
     if (role === 'BUSINESS') {
       // Local Business Registration
       const user = await prisma.user.create({

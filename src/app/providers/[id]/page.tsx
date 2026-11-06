@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { RequestServiceModal } from '@/components/services/RequestServiceModal';
+import { MembershipBadge } from '@/components/ui/MembershipBadge';
 
 export default function ProviderProfilePage() {
   const params = useParams();
@@ -159,6 +160,7 @@ export default function ProviderProfilePage() {
                 <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 text-xs font-bold border border-emerald-200 dark:border-emerald-800">
                   Admin Approved Provider
                 </span>
+                <MembershipBadge tier={provider.tier || 'BRONZE'} size="sm" />
               </div>
 
               <p className="text-sm font-bold text-emerald-700 dark:text-emerald-400">

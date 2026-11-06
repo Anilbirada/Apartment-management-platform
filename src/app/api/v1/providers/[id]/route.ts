@@ -1,11 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getCurrentUser } from '@/lib/auth';
 
 export async function GET(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
+    const currentUser = await getCurrentUser(req);
+    if (!currentUser) {
+      return NextResponse.json(
+        {
+          error: 'AUTHENTICATION_REQUIRED',
+          message: 'Please log in to explore services and local businesses in your community.'
+        },
+        { status: 401 }
+      );
+    }
     const provider = await prisma.providerProfile.findUnique({
       where: { id: params.id },
       include: {

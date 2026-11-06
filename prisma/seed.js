@@ -316,6 +316,39 @@ async function main() {
     }
   });
 
+  // Role 6: Authenticated Guest User (Requirement 11)
+  const guestUser = await prisma.user.create({
+    data: {
+      email: 'guest.demo@palmheights.com',
+      passwordHash,
+      name: 'Kavita Nair',
+      phone: '+919845012345',
+      role: 'GUEST',
+      isVerified: true,
+      status: 'ACTIVE',
+      avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=250&q=80'
+    }
+  });
+
+  // Seed sample upgrade application for guestUser
+  await prisma.roleUpgradeApplication.create({
+    data: {
+      userId: guestUser.id,
+      targetRole: 'PROVIDER',
+      status: 'PENDING_REVIEW',
+      applicationDataJson: JSON.stringify({
+        businessName: 'Kavita Home Baking & Confectionery',
+        serviceCategory: 'cleaning-housekeeping',
+        experienceYears: '4',
+        startingPrice: '399',
+        serviceArea: 'Palm Heights, Bellandur',
+        bio: 'Artisan home baker and cake decorator specializing in customized birthday cakes and sourdough breads.',
+        idProofType: 'AADHAAR',
+        idProofUrl: 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?auto=format&fit=crop&w=600&q=80'
+      })
+    }
+  });
+
   // Role 4: Local Businesses
   const businessUser1 = await prisma.user.create({
     data: {
@@ -351,7 +384,10 @@ async function main() {
       targetApartments: JSON.stringify([community1.id, community2.id]),
       isApproved: true,
       verificationStatus: 'APPROVED',
-      status: 'ACTIVE'
+      status: 'ACTIVE',
+      tier: 'GOLD',
+      tierStatus: 'ACTIVE',
+      tierEffectiveDate: new Date()
     }
   });
 
@@ -389,7 +425,10 @@ async function main() {
       targetApartments: JSON.stringify([community1.id]),
       isApproved: true,
       verificationStatus: 'APPROVED',
-      status: 'ACTIVE'
+      status: 'ACTIVE',
+      tier: 'SILVER',
+      tierStatus: 'ACTIVE',
+      tierEffectiveDate: new Date()
     }
   });
 
@@ -547,6 +586,7 @@ async function main() {
       availableToday: true,
       isApproved: true,
       verificationStatus: 'APPROVED',
+      tier: 'GOLD',
       avatar: 'https://images.unsplash.com/photo-1540569014015-19a7be504e3a?auto=format&fit=crop&w=300&q=80',
       categorySlug: 'home-maintenance',
       subCategorySlug: 'plumber',
@@ -579,6 +619,7 @@ async function main() {
       availableToday: true,
       isApproved: true,
       verificationStatus: 'APPROVED',
+      tier: 'SILVER',
       avatar: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=300&q=80',
       categorySlug: 'home-maintenance',
       subCategorySlug: 'electrician',
@@ -610,6 +651,7 @@ async function main() {
       availableToday: true,
       isApproved: true,
       verificationStatus: 'APPROVED',
+      tier: 'BRONZE',
       avatar: 'https://images.unsplash.com/photo-1567532939604-b6b5b0db2604?auto=format&fit=crop&w=300&q=80',
       categorySlug: 'cleaning-housekeeping',
       subCategorySlug: 'deep-cleaning',
@@ -679,6 +721,9 @@ async function main() {
             availableToday: prov.availableToday,
             isApproved: prov.isApproved,
             verificationStatus: prov.verificationStatus,
+            tier: prov.tier || 'BRONZE',
+            tierStatus: 'ACTIVE',
+            tierEffectiveDate: new Date(),
             idProofType: 'AADHAAR',
             idProofUrl: 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?auto=format&fit=crop&w=500&q=80',
             policeVerificationUrl: 'https://images.unsplash.com/photo-1450133064473-71024230f91b?auto=format&fit=crop&w=500&q=80',

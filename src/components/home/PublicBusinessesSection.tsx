@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Store, Tag, MapPin, Sparkles, Star, Clock, CheckCircle2, ArrowRight, ShoppingBag } from 'lucide-react';
+import { MembershipBadge } from '@/components/ui/MembershipBadge';
 
 interface LocalBusinessData {
   id: string;
@@ -11,6 +12,7 @@ interface LocalBusinessData {
   city: string;
   address?: string;
   operatingHours?: string;
+  tier?: string;
   isApproved: boolean;
   status: string;
   campaigns?: any[];
@@ -184,9 +186,12 @@ export function PublicBusinessesSection() {
             >
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-teal-50 dark:bg-teal-950/60 text-teal-700 dark:text-teal-300 border border-teal-200/40 dark:border-teal-900/30">
-                    {b.category}
-                  </span>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-teal-50 dark:bg-teal-950/60 text-teal-700 dark:text-teal-300 border border-teal-200/40 dark:border-teal-900/30">
+                      {b.category}
+                    </span>
+                    <MembershipBadge tier={b.tier || 'BRONZE'} size="sm" />
+                  </div>
                   <div className="flex items-center gap-1 text-amber-500 text-xs font-black">
                     <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
                     <span>4.9</span>
@@ -228,7 +233,7 @@ export function PublicBusinessesSection() {
                   <span>Verified Partner</span>
                 </span>
                 <Link
-                  href="/login"
+                  href={`/login?redirect=/#businesses&message=${encodeURIComponent('Please log in to explore services and local businesses in your community.')}`}
                   className="text-xs font-bold text-teal-600 dark:text-teal-400 hover:text-teal-700 flex items-center gap-1"
                 >
                   <span>Connect</span>

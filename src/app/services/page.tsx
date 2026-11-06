@@ -21,15 +21,23 @@ import {
 } from 'lucide-react';
 import { RequestServiceModal } from '@/components/services/RequestServiceModal';
 import { PostRequirementModal } from '@/components/requirements/PostRequirementModal';
+import { MembershipBadge } from '@/components/ui/MembershipBadge';
 import { useApp } from '@/context/AppContext';
 
 function ServicesContent() {
-  const { user } = useApp();
+  const { user, loading: userLoading } = useApp();
   const searchParams = useSearchParams();
   const initialCategory = searchParams.get('category') || '';
   const initialSubcategory = searchParams.get('subcategory') || '';
   const initialQuery = searchParams.get('q') || '';
   const initialCommunity = searchParams.get('communityId') || user?.communityId || user?.apartment?.id || user?.community?.id || '';
+
+  // Marketplace Access Control (Requirement 11 & TEST 2)
+  useEffect(() => {
+    if (!userLoading && !user) {
+      window.location.href = `/login?redirect=/services&message=${encodeURIComponent('Please log in to explore services and local businesses in your community.')}`;
+    }
+  }, [user, userLoading]);
 
   const [categories, setCategories] = useState<any[]>([]);
   const [apartments, setApartments] = useState<any[]>([]);
@@ -389,9 +397,12 @@ function ServicesContent() {
                         <h3 className="font-extrabold text-base text-slate-900 dark:text-white line-clamp-1">
                           {prov.user?.name}
                         </h3>
-                        <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-400 line-clamp-1">
-                          {prov.businessName}
-                        </p>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-400 line-clamp-1">
+                            {prov.businessName}
+                          </p>
+                          <MembershipBadge tier={prov.tier || 'BRONZE'} size="sm" />
+                        </div>
                       </div>
                     </div>
 

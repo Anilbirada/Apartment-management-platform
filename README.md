@@ -311,29 +311,49 @@ You can log in via **[http://localhost:3000/login](http://localhost:3000/login)*
 
 | Role | Name | Email | Password | Entity / Tower / Notes |
 | :--- | :--- | :--- | :--- | :--- |
+| **Authenticated Guest** | Kavita Nair | `guest.demo@palmheights.com` | `GuestPass123!` | Guest Dashboard & Role Upgrades |
 | **Apartment Resident** | Rahul Sharma | `rahul.sharma@gmail.com` | `Password123!` | Palm Heights (Tower B - 304, Owner) |
 | **Apartment Resident** | Priya Patel | `priya.patel@gmail.com` | `Password123!` | Palm Heights (Tower A - 1202, Tenant) |
 | **Society Management** | Sunita Deshmukh | `manager@palmheights.com` | `Password123!` | Palm Heights Estate Office |
-| **Service Provider** | Ramesh Kumar | `ramesh.plumber@gmail.com` | `Password123!` | Master Plumbing Works (₹299+) |
-| **Service Provider** | Suresh Varma | `suresh.electrician@gmail.com` | `Password123!` | Sparkle Electric Services (₹249+) |
-| **Service Provider** | Anita Devi | `anita.cleaning@gmail.com` | `Password123!` | CleanHome Deep Cleaning (₹499+) |
-| **Local Business** | Rohan Singhal | `business@namastefresh.com` | `Password123!` | Namaste Fresh Mart (Grocery & Supermarket) |
+| **Service Provider** | Ramesh Kumar | `ramesh.plumber@gmail.com` | `Password123!` | Master Plumbing Works (₹299+, Gold Tier) |
+| **Service Provider** | Suresh Varma | `suresh.electrician@gmail.com` | `Password123!` | Sparkle Electric Services (₹249+, Silver Tier) |
+| **Service Provider** | Anita Devi | `anita.cleaning@gmail.com` | `Password123!` | CleanHome Deep Cleaning (₹499+, Bronze Tier) |
+| **Local Business** | Rohan Singhal | `owner@namastefresh.com` | `Password123!` | Namaste Fresh Mart (Gold Tier Supermarket) |
 | **Platform Administrator** | Vikramaditya Rao | `admin@palmheights.com` | `Password123!` | Master Platform Administrator |
 
 ---
 
 ## 🧪 Automated Verification & Test Suites
 
-The project includes two comprehensive test suites verifying all 23 core scenarios end-to-end:
+The project includes three comprehensive test suites verifying all 36 core scenarios end-to-end:
 
-### Suite 1: Additional Requirements Verification (Req 10, 11, 12)
+### Suite 1: Version 3.0 Customer Requirements Suite
+```bash
+node scripts/test-v3-requirements.js
+```
+**Test Coverage (13/13 Passed)**:
+- `11.1`: Public Homepage & General Info accessible without auth
+- `11.2`: Marketplace provider listings require authentication & active check
+- `11.3`: Guest account registration creates active verified guest with no apartment ties
+- `11.4`: Seeded Guest Demo user validated with GUEST role
+- `12.1`: Providers and Businesses have tier fields defaulting to BRONZE
+- `12.2`: Tier Priority Ordering logic (GOLD > SILVER > BRONZE)
+- `12.3`: Membership Tier Audit logging and entity relations
+- `13.1`: Guest can submit RoleUpgradeApplication with PENDING_REVIEW state
+- `13.2`: Admin inspects application details and submitted documents
+- `13.3`: Admin approves application -> User elevated to target role with assigned tier
+- `13.4`: Admin rejection flow enforces mandatory rejection reason
+- `14.1`: Switch-role endpoint is restricted to ADMIN role only (403 Forbidden for non-admins)
+- `14.2`: Navigation mappings configured for all 6 distinct roles
+
+### Suite 2: Additional Requirements Verification (Req 10, 11, 12)
 ```bash
 node scripts/test-v2-additional-requirements.js
 ```
 **Test Coverage (11/11 Passed)**:
 - `10.1`: Public visitor views communities without authentication
 - `10.2`: Public visitor explores approved neighborhood businesses
-- `10.3`: Multi-role accounts validated for all 5 roles
+- `10.3`: Multi-role accounts validated for all roles
 - `11.1`: Persistent upload storage directory validated
 - `11.2`: File validation (JPG/PNG/WebP, max 5MB size limit)
 - `11.3`: Save campaign record with image metadata
@@ -343,7 +363,7 @@ node scripts/test-v2-additional-requirements.js
 - `12.4`: `CampaignAuditLog` metrics and historical preservation
 - `12.5`: Preservation of payment transactions and subscription invoices
 
-### Suite 2: Core Platform Regression Suite (12 Core Scenarios)
+### Suite 3: Core Platform Regression Suite (12 Core Scenarios)
 ```bash
 node scripts/test-e2e.js
 ```

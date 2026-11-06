@@ -4,7 +4,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { translations, Language, Translations } from '@/lib/i18n';
 import { themeTokens, ThemeMode } from '@/lib/theme';
 
-export type RoleType = 'RESIDENT' | 'PROVIDER' | 'MANAGEMENT' | 'BUSINESS' | 'ADMIN';
+export type RoleType = 'GUEST' | 'RESIDENT' | 'PROVIDER' | 'MANAGEMENT' | 'BUSINESS' | 'ADMIN';
 
 export interface User {
   id: string;

@@ -42,6 +42,7 @@ model User {
   sentInvitations       ResidentInvitation[]   @relation("InvitedResidents")
   subscriptions         Subscription[]
   payments              PaymentTransaction[]
+  roleUpgradeApps       RoleUpgradeApplication[]
 }
 
 model Community {
@@ -194,6 +195,11 @@ model ProviderProfile {
   idProofUrl           String?
   policeVerificationUrl String?
   beforeAfterPhotos    String?                // JSON array of strings
+  tier                 String                 @default("BRONZE") // GOLD, SILVER, BRONZE
+  tierStatus           String                 @default("ACTIVE") // ACTIVE, SUSPENDED
+  tierEffectiveDate    DateTime               @default(now())
+  tierExpiryDate       DateTime?
+  tierAssignedById     String?
   createdAt            DateTime               @default(now())
   updatedAt            DateTime               @updatedAt
 
@@ -205,6 +211,7 @@ model ProviderProfile {
   reviews              Review[]
   serviceAreas         ProviderServiceArea[]
   visits               ProviderVisit[]
+  tierAudits           MembershipTierAudit[]  @relation("ProviderTierAudits")
 }
 
 model ProviderServiceArea {
@@ -513,11 +520,17 @@ model LocalBusiness {
   isApproved         Boolean            @default(false)
   verificationStatus String             @default("PENDING") // PENDING, APPROVED, REJECTED
   status             String             @default("ACTIVE") // ACTIVE, SUSPENDED
+  tier               String             @default("BRONZE") // GOLD, SILVER, BRONZE
+  tierStatus         String             @default("ACTIVE") // ACTIVE, SUSPENDED
+  tierEffectiveDate  DateTime           @default(now())
+  tierExpiryDate     DateTime?
+  tierAssignedById   String?
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
 
   user               User               @relation(fields: [userId], references: [id], onDelete: Cascade)
   campaigns          BusinessCampaign[]
+  tierAudits         MembershipTierAudit[] @relation("BusinessTierAudits")
 }
 
 model BusinessCampaign {
@@ -679,4 +692,47 @@ model VisitAuditLog {
   timestamp         DateTime      @default(now())
 
   visit             ProviderVisit @relation(fields: [visitId], references: [id], onDelete: Cascade)
+}
+
+// ----------------------------------------------------
+// GUEST MEMBERSHIP UPGRADE APPLICATIONS (REQ 13)
+// ----------------------------------------------------
+model RoleUpgradeApplication {
+  id                   String                 @id @default(uuid())
+  userId               String
+  targetRole           String                 // PROVIDER, BUSINESS, MANAGEMENT
+  status               String                 @default("PENDING_REVIEW") // DRAFT, SUBMITTED, PENDING_REVIEW, ADDITIONAL_INFO_REQUIRED, APPROVED, REJECTED, CANCELLED
+  applicationDataJson  String                 // Full serialized application form data
+  documentsJson        String?                // Array of uploaded document URLs
+  rejectionReason      String?
+  adminNotes           String?
+  assignedCommunityId  String?
+  assignedTier         String?                // GOLD, SILVER, BRONZE
+  reviewedById         String?
+  reviewedAt           DateTime?
+  createdAt            DateTime               @default(now())
+  updatedAt            DateTime               @updatedAt
+
+  user                 User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ----------------------------------------------------
+// GOLD, SILVER, BRONZE MEMBERSHIP TIER AUDIT (REQ 12)
+// ----------------------------------------------------
+model MembershipTierAudit {
+  id                   String                 @id @default(uuid())
+  entityType           String                 // PROVIDER, LOCAL_BUSINESS
+  providerProfileId    String?
+  localBusinessId      String?
+  previousTier         String?
+  newTier              String                 // GOLD, SILVER, BRONZE
+  status               String                 @default("ACTIVE")
+  effectiveDate        DateTime               @default(now())
+  expiryDate           DateTime?
+  reason               String?
+  assignedById         String?
+  createdAt            DateTime               @default(now())
+
+  providerProfile      ProviderProfile?       @relation("ProviderTierAudits", fields: [providerProfileId], references: [id], onDelete: Cascade)
+  localBusiness        LocalBusiness?         @relation("BusinessTierAudits", fields: [localBusinessId], references: [id], onDelete: Cascade)
 }

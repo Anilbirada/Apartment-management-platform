@@ -10,6 +10,33 @@ export async function GET(req: NextRequest) {
     const category = searchParams.get('category');
     const communityId = searchParams.get('communityId');
     const city = searchParams.get('city');
+    const isSummary = searchParams.get('summary') === 'true' || searchParams.get('publicSummary') === 'true';
+
+    // REQUIREMENT 11 & MARKETPLACE PRIVACY RULE:
+    // Unauthenticated visitors may only retrieve high-level category & count summaries.
+    // Full business listings require authentication.
+    const currentUser = await getCurrentUser(req);
+    if (!currentUser && !isSummary) {
+      return NextResponse.json(
+        {
+          error: 'AUTHENTICATION_REQUIRED',
+          message: 'Please log in to explore services and local businesses in your community.'
+        },
+        { status: 401 }
+      );
+    }
+
+    if (!currentUser && isSummary) {
+      const totalCount = await prisma.localBusiness.count({
+        where: { isApproved: true, status: 'ACTIVE' }
+      });
+      return NextResponse.json({
+        success: true,
+        summary: true,
+        totalBusinesses: totalCount,
+        categories: ['GROCERY', 'PHARMACY', 'HARDWARE', 'RESTAURANT', 'SALON']
+      });
+    }
 
     const where: any = {
       isApproved: true,
@@ -26,7 +53,6 @@ export async function GET(req: NextRequest) {
 
     const businesses = await prisma.localBusiness.findMany({
       where,
-      orderBy: { createdAt: 'desc' },
       include: {
         user: {
           select: {
@@ -54,6 +80,23 @@ export async function GET(req: NextRequest) {
         }
       });
     }
+
+    // REQUIREMENT 12: Tier-based backend priority ranking
+    // Gold (3) > Silver (2) > Bronze (1)
+    const tierWeights: Record<string, number> = {
+      GOLD: 3,
+      SILVER: 2,
+      BRONZE: 1
+    };
+
+    filtered.sort((a, b) => {
+      const weightA = tierWeights[a.tier?.toUpperCase() || 'BRONZE'] || 1;
+      const weightB = tierWeights[b.tier?.toUpperCase() || 'BRONZE'] || 1;
+      if (weightB !== weightA) {
+        return weightB - weightA;
+      }
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
 
     return NextResponse.json({ success: true, count: filtered.length, businesses: filtered });
   } catch (error: any) {

@@ -1,9 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { signToken } from '@/lib/auth';
+import { signToken, getCurrentUser } from '@/lib/auth';
 
 export async function POST(req: NextRequest) {
   try {
+    // REQUIREMENT 14: Backend security - only Platform Administrators can simulate/switch roles
+    const currentUser = await getCurrentUser(req);
+    if (!currentUser || currentUser.role !== 'ADMIN') {
+      return NextResponse.json(
+        { error: 'Forbidden: Only Platform Administrators are authorized to switch or simulate user roles.' },
+        { status: 403 }
+      );
+    }
+
     const { role } = await req.json();
 
     const targetEmailMap: Record<string, string> = {
@@ -11,7 +20,8 @@ export async function POST(req: NextRequest) {
       MANAGEMENT: 'manager@palmheights.com',
       RESIDENT: 'rahul.sharma@gmail.com',
       PROVIDER: 'ramesh.plumber@gmail.com',
-      BUSINESS: 'owner@namastefresh.com'
+      BUSINESS: 'owner@namastefresh.com',
+      GUEST: 'guest.demo@palmheights.com'
     };
 
     const email = targetEmailMap[role] || 'rahul.sharma@gmail.com';

@@ -27,7 +27,9 @@ export default function LoginPage() {
 
   const [authMethod, setAuthMethod] = useState<'PASSWORD' | 'OTP'>('PASSWORD');
   const [isRegister, setIsRegister] = useState(false);
-  const [registerRole, setRegisterRole] = useState<'RESIDENT' | 'PROVIDER' | 'BUSINESS'>('RESIDENT');
+  const [registerRole, setRegisterRole] = useState<'GUEST' | 'RESIDENT' | 'PROVIDER' | 'BUSINESS'>('RESIDENT');
+  const [redirectPath, setRedirectPath] = useState<string | null>(null);
+  const [accessMessage, setAccessMessage] = useState<string | null>(null);
 
   // Login state
   const [identifier, setIdentifier] = useState('rahul.sharma@gmail.com');
@@ -63,8 +65,16 @@ export default function LoginPage() {
         setIsRegister(true);
       }
       const roleParam = searchParams.get('role');
-      if (roleParam === 'RESIDENT' || roleParam === 'PROVIDER' || roleParam === 'BUSINESS') {
-        setRegisterRole(roleParam);
+      if (roleParam === 'GUEST' || roleParam === 'RESIDENT' || roleParam === 'PROVIDER' || roleParam === 'BUSINESS') {
+        setRegisterRole(roleParam as any);
+      }
+      const redirect = searchParams.get('redirect');
+      if (redirect) {
+        setRedirectPath(redirect);
+      }
+      const message = searchParams.get('message');
+      if (message) {
+        setAccessMessage(message);
       }
     }
 
@@ -81,6 +91,19 @@ export default function LoginPage() {
       })
       .catch(() => {});
   }, []);
+
+  const routeUserAfterAuth = (user: any) => {
+    if (redirectPath) {
+      router.push(redirectPath);
+      return;
+    }
+    if (user.role === 'GUEST') router.push('/guest/dashboard');
+    else if (user.role === 'PROVIDER') router.push('/provider/dashboard');
+    else if (user.role === 'BUSINESS') router.push('/business/dashboard');
+    else if (user.role === 'MANAGEMENT') router.push('/management/dashboard');
+    else if (user.role === 'ADMIN') router.push('/admin');
+    else router.push('/');
+  };
 
   const handleCustomLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -101,11 +124,7 @@ export default function LoginPage() {
       }
 
       login(data.token, data.user);
-      if (data.user.role === 'PROVIDER') router.push('/provider/dashboard');
-      else if (data.user.role === 'BUSINESS') router.push('/business/dashboard');
-      else if (data.user.role === 'MANAGEMENT') router.push('/management/dashboard');
-      else if (data.user.role === 'ADMIN') router.push('/admin');
-      else router.push('/');
+      routeUserAfterAuth(data.user);
     } catch (e: any) {
       setError(e.message || 'Authentication failed');
     } finally {
@@ -162,11 +181,7 @@ export default function LoginPage() {
       }
 
       login(data.token, data.user);
-      if (data.user.role === 'PROVIDER') router.push('/provider/dashboard');
-      else if (data.user.role === 'BUSINESS') router.push('/business/dashboard');
-      else if (data.user.role === 'MANAGEMENT') router.push('/management/dashboard');
-      else if (data.user.role === 'ADMIN') router.push('/admin');
-      else router.push('/');
+      routeUserAfterAuth(data.user);
     } catch (e: any) {
       setError(e.message || 'OTP Verification failed');
     } finally {
@@ -195,12 +210,12 @@ export default function LoginPage() {
           password: regPassword,
           phone: regPhone,
           role: registerRole,
-          communityId: regCommunityId,
-          block: regBlock,
-          flatNumber: regFlat,
-          residentType: regResidentType,
-          businessName: regBusinessName || `${regName} Enterprise`,
-          businessCategory: regCategory
+          communityId: registerRole === 'GUEST' ? null : regCommunityId,
+          block: registerRole === 'RESIDENT' ? regBlock : undefined,
+          flatNumber: registerRole === 'RESIDENT' ? regFlat : undefined,
+          residentType: registerRole === 'RESIDENT' ? regResidentType : undefined,
+          businessName: registerRole === 'BUSINESS' || registerRole === 'PROVIDER' ? (regBusinessName || `${regName} Enterprise`) : undefined,
+          businessCategory: registerRole === 'BUSINESS' ? regCategory : undefined
         })
       });
 
@@ -213,10 +228,8 @@ export default function LoginPage() {
       login(data.token, data.user);
 
       setTimeout(() => {
-        if (registerRole === 'PROVIDER') router.push('/provider/dashboard');
-        else if (registerRole === 'BUSINESS') router.push('/business/dashboard');
-        else router.push('/');
-      }, 1200);
+        routeUserAfterAuth(data.user);
+      }, 1000);
     } catch (e: any) {
       setError(e.message || 'Registration failed');
     } finally {
@@ -224,11 +237,13 @@ export default function LoginPage() {
     }
   };
 
-  const handleQuickPersona = async (targetRole: 'RESIDENT' | 'PROVIDER' | 'MANAGEMENT' | 'BUSINESS' | 'ADMIN') => {
+  const handleQuickPersona = async (targetRole: 'RESIDENT' | 'PROVIDER' | 'MANAGEMENT' | 'BUSINESS' | 'ADMIN' | 'GUEST') => {
     try {
       setLoading(true);
       await switchRole(targetRole);
-      if (targetRole === 'PROVIDER') router.push('/provider/dashboard');
+      if (redirectPath) router.push(redirectPath);
+      else if (targetRole === 'GUEST') router.push('/guest/dashboard');
+      else if (targetRole === 'PROVIDER') router.push('/provider/dashboard');
       else if (targetRole === 'BUSINESS') router.push('/business/dashboard');
       else if (targetRole === 'MANAGEMENT') router.push('/management/dashboard');
       else if (targetRole === 'ADMIN') router.push('/admin');
@@ -271,12 +286,28 @@ export default function LoginPage() {
           </p>
         </div>
 
-        {/* Demo Persona Quick Login Strip (5 Roles) */}
+        {/* ACCESS RESTRICTION ALERT (REQUIREMENT 11) */}
+        {accessMessage && (
+          <div className="p-3.5 rounded-2xl bg-amber-500/20 border border-amber-500/40 text-amber-200 text-xs font-semibold flex items-center gap-2.5 shadow-md animate-fadeIn">
+            <Sparkles className="w-4 h-4 text-amber-400 shrink-0" />
+            <span className="leading-snug">{accessMessage}</span>
+          </div>
+        )}
+
+        {/* Demo Persona Quick Login Strip (6 Roles) */}
         <div className="p-3 rounded-2xl bg-white/5 border border-white/10 space-y-2">
           <div className="text-[10px] font-bold uppercase tracking-wider text-emerald-400 text-center">
-            Instant One-Tap Demo Access (5 Roles)
+            Instant One-Tap Demo Access (6 Roles)
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 text-left">
+            <button
+              onClick={() => handleQuickPersona('GUEST')}
+              className="px-2.5 py-1.5 rounded-xl bg-slate-600/30 hover:bg-slate-600/50 border border-slate-500/30 text-slate-200 text-xs font-bold transition-all"
+            >
+              <div>Guest</div>
+              <div className="text-[10px] font-normal text-slate-300 truncate">Visitor Account</div>
+            </button>
+
             <button
               onClick={() => handleQuickPersona('RESIDENT')}
               className="px-2.5 py-1.5 rounded-xl bg-emerald-600/30 hover:bg-emerald-600/50 border border-emerald-500/30 text-emerald-200 text-xs font-bold transition-all"
@@ -311,9 +342,9 @@ export default function LoginPage() {
 
             <button
               onClick={() => handleQuickPersona('ADMIN')}
-              className="px-2.5 py-1.5 rounded-xl bg-amber-600/30 hover:bg-amber-600/50 border border-amber-500/30 text-amber-200 text-xs font-bold transition-all sm:col-span-2"
+              className="px-2.5 py-1.5 rounded-xl bg-amber-600/30 hover:bg-amber-600/50 border border-amber-500/30 text-amber-200 text-xs font-bold transition-all"
             >
-              <div>Platform Administrator</div>
+              <div>Platform Admin</div>
               <div className="text-[10px] font-normal text-slate-300 truncate">Vikramaditya Rao</div>
             </button>
           </div>
@@ -503,14 +534,25 @@ export default function LoginPage() {
               <label className="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1">
                 I am registering as:
               </label>
-              <div className="grid grid-cols-3 gap-1.5">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setRegisterRole('GUEST')}
+                  className={`py-2 px-2 rounded-xl border text-xs font-bold transition-all text-center ${
+                    registerRole === 'GUEST'
+                      ? 'bg-emerald-600/40 border-emerald-400 text-white shadow-xs'
+                      : 'border-white/10 text-slate-400 hover:text-white'
+                  }`}
+                >
+                  Guest
+                </button>
                 <button
                   type="button"
                   onClick={() => setRegisterRole('RESIDENT')}
                   className={`py-2 px-2 rounded-xl border text-xs font-bold transition-all text-center ${
                     registerRole === 'RESIDENT'
-                      ? 'bg-emerald-600/40 border-emerald-400 text-white'
-                      : 'border-white/10 text-slate-400'
+                      ? 'bg-emerald-600/40 border-emerald-400 text-white shadow-xs'
+                      : 'border-white/10 text-slate-400 hover:text-white'
                   }`}
                 >
                   Resident
@@ -520,8 +562,8 @@ export default function LoginPage() {
                   onClick={() => setRegisterRole('PROVIDER')}
                   className={`py-2 px-2 rounded-xl border text-xs font-bold transition-all text-center ${
                     registerRole === 'PROVIDER'
-                      ? 'bg-blue-600/40 border-blue-400 text-white'
-                      : 'border-white/10 text-slate-400'
+                      ? 'bg-blue-600/40 border-blue-400 text-white shadow-xs'
+                      : 'border-white/10 text-slate-400 hover:text-white'
                   }`}
                 >
                   Provider
@@ -531,8 +573,8 @@ export default function LoginPage() {
                   onClick={() => setRegisterRole('BUSINESS')}
                   className={`py-2 px-2 rounded-xl border text-xs font-bold transition-all text-center ${
                     registerRole === 'BUSINESS'
-                      ? 'bg-teal-600/40 border-teal-400 text-white'
-                      : 'border-white/10 text-slate-400'
+                      ? 'bg-teal-600/40 border-teal-400 text-white shadow-xs'
+                      : 'border-white/10 text-slate-400 hover:text-white'
                   }`}
                 >
                   Local Business
@@ -540,21 +582,23 @@ export default function LoginPage() {
               </div>
             </div>
 
-            {/* Apartment Selection */}
-            <div>
-              <label className="block text-xs font-bold text-slate-300 mb-1">Target Apartment Community</label>
-              <select
-                value={regCommunityId}
-                onChange={(e) => setRegCommunityId(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-white/20 text-white text-xs font-medium"
-              >
-                {communities.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name} ({c.city})
-                  </option>
-                ))}
-              </select>
-            </div>
+            {/* Apartment Selection (Required only for Resident, Provider, Business) */}
+            {registerRole !== 'GUEST' && (
+              <div>
+                <label className="block text-xs font-bold text-slate-300 mb-1">Target Apartment Community</label>
+                <select
+                  value={regCommunityId}
+                  onChange={(e) => setRegCommunityId(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-white/20 text-white text-xs font-medium"
+                >
+                  {communities.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name} ({c.city})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             <div>
               <label className="block text-xs font-bold text-slate-300 mb-1">Full Name *</label>
