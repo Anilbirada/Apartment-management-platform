@@ -23,6 +23,7 @@ export interface TokenPayload {
   role: UserRole;
   communityId?: string;
   name: string;
+  originalRole?: string;
 }
 
 export function normalizeEmail(email: string): string {

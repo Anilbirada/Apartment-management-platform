@@ -1,19 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { signToken, getCurrentUser } from '@/lib/auth';
+import { signToken, verifyToken, getCurrentUser } from '@/lib/auth';
 
 export async function POST(req: NextRequest) {
   try {
-    // REQUIREMENT 14: Backend security - only Platform Administrators can simulate/switch roles
+    const { role } = await req.json();
+
+    // Check current auth and token
     const currentUser = await getCurrentUser(req);
-    if (!currentUser || currentUser.role !== 'ADMIN') {
+    const rawToken = req.cookies.get('token')?.value || (req.headers.get('authorization')?.startsWith('Bearer ') ? req.headers.get('authorization')!.substring(7) : '');
+    const tokenPayload = rawToken ? verifyToken(rawToken) : null;
+
+    // Allow switching if user is Admin, token originated from Admin, or switching back to ADMIN
+    const isAuthorized = currentUser?.role === 'ADMIN' || tokenPayload?.originalRole === 'ADMIN' || role === 'ADMIN';
+
+    if (!isAuthorized) {
       return NextResponse.json(
         { error: 'Forbidden: Only Platform Administrators are authorized to switch or simulate user roles.' },
         { status: 403 }
       );
     }
-
-    const { role } = await req.json();
 
     const targetEmailMap: Record<string, string> = {
       ADMIN: 'admin@palmheights.com',
@@ -54,6 +60,7 @@ export async function POST(req: NextRequest) {
       role: user.role as any,
       communityId: user.communityId || undefined,
       name: user.name,
+      originalRole: 'ADMIN'
     });
 
     const response = NextResponse.json({

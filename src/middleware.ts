@@ -90,10 +90,7 @@ export function middleware(req: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  // 2. Authenticated user visiting /login directly -> redirect to their authorized dashboard
-  if (user && pathname === '/login' && !search.includes('redirect')) {
-    return NextResponse.redirect(new URL(userDashboard, req.url));
-  }
+  // 2. Authenticated user visiting /login directly -> allow access so users can switch personas or sign into another account freely (trap prevention)
 
   // 3. Authenticated Role Boundary Enforcement
   if (user) {
@@ -102,24 +99,48 @@ export function middleware(req: NextRequest) {
       return NextResponse.next();
     }
 
-    // Prevent non-admin from accessing /admin routes
+    // Prevent non-admin from accessing /admin routes -> redirect to login with prompt to access admin console
     if (pathname.startsWith('/admin') && role !== 'ADMIN') {
-      return NextResponse.redirect(new URL(userDashboard, req.url));
+      const loginUrl = new URL('/login', req.url);
+      loginUrl.searchParams.set('redirect', pathname + (search || ''));
+      loginUrl.searchParams.set(
+        'message',
+        'Platform Administrator credentials required to access Central SaaS Admin Console.'
+      );
+      return NextResponse.redirect(loginUrl);
     }
 
     // Prevent non-management from accessing /management routes
     if (pathname.startsWith('/management') && role !== 'MANAGEMENT') {
-      return NextResponse.redirect(new URL(userDashboard, req.url));
+      const loginUrl = new URL('/login', req.url);
+      loginUrl.searchParams.set('redirect', pathname + (search || ''));
+      loginUrl.searchParams.set(
+        'message',
+        'Society Management credentials required to access Management Portal.'
+      );
+      return NextResponse.redirect(loginUrl);
     }
 
     // Prevent non-provider from accessing /provider routes
     if (pathname.startsWith('/provider') && role !== 'PROVIDER') {
-      return NextResponse.redirect(new URL(userDashboard, req.url));
+      const loginUrl = new URL('/login', req.url);
+      loginUrl.searchParams.set('redirect', pathname + (search || ''));
+      loginUrl.searchParams.set(
+        'message',
+        'Service Provider credentials required to access Provider Hub.'
+      );
+      return NextResponse.redirect(loginUrl);
     }
 
     // Prevent non-business from accessing /business routes
     if (pathname.startsWith('/business') && role !== 'BUSINESS') {
-      return NextResponse.redirect(new URL(userDashboard, req.url));
+      const loginUrl = new URL('/login', req.url);
+      loginUrl.searchParams.set('redirect', pathname + (search || ''));
+      loginUrl.searchParams.set(
+        'message',
+        'Local Business Merchant credentials required to access Business Hub.'
+      );
+      return NextResponse.redirect(loginUrl);
     }
 
     // Prevent non-resident from accessing /resident routes

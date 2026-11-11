@@ -20,11 +20,11 @@ import {
   Smartphone
 } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
-import { getDashboardForRole } from '@/lib/roles';
+import { getDashboardForRole, getRoleLabel } from '@/lib/roles';
 
 export default function LoginPage() {
   const router = useRouter();
-  const { login, switchRole } = useApp();
+  const { login, switchRole, user } = useApp();
 
   const [authMethod, setAuthMethod] = useState<'PASSWORD' | 'OTP'>('PASSWORD');
   const [isRegister, setIsRegister] = useState(false);
@@ -234,14 +234,44 @@ export default function LoginPage() {
     }
   };
 
+  const PERSONA_CREDENTIALS: Record<string, { identifier: string; password: string }> = {
+    ADMIN: { identifier: 'admin@palmheights.com', password: 'Password123!' },
+    MANAGEMENT: { identifier: 'manager@palmheights.com', password: 'Password123!' },
+    RESIDENT: { identifier: 'rahul.sharma@gmail.com', password: 'Password123!' },
+    PROVIDER: { identifier: 'ramesh.plumber@gmail.com', password: 'Password123!' },
+    BUSINESS: { identifier: 'owner@namastefresh.com', password: 'Password123!' },
+    GUEST: { identifier: 'guest.demo@palmheights.com', password: 'Password123!' }
+  };
+
   const handleQuickPersona = async (targetRole: 'RESIDENT' | 'PROVIDER' | 'MANAGEMENT' | 'BUSINESS' | 'ADMIN' | 'GUEST') => {
     try {
       setLoading(true);
-      await switchRole(targetRole);
-      if (redirectPath) router.push(redirectPath);
-      else router.push(getDashboardForRole(targetRole));
-    } catch (e) {
-      console.error(e);
+      setError('');
+      setSuccessMsg('');
+
+      const creds = PERSONA_CREDENTIALS[targetRole];
+      if (!creds) {
+        throw new Error('Unknown persona requested');
+      }
+
+      const res = await fetch('/api/v1/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ identifier: creds.identifier, password: creds.password })
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Persona login failed');
+      }
+
+      login(data.token, data.user);
+      const destination = redirectPath || getDashboardForRole(targetRole);
+      // Force full window navigation to ensure the HTTP cookie and server session are immediately synced
+      window.location.href = destination;
+    } catch (e: any) {
+      console.error('Quick Persona login error:', e);
+      setError(e.message || 'Quick login failed');
     } finally {
       setLoading(false);
     }
@@ -283,6 +313,24 @@ export default function LoginPage() {
           <div className="p-3.5 rounded-2xl bg-amber-500/20 border border-amber-500/40 text-amber-200 text-xs font-semibold flex items-center gap-2.5 shadow-md animate-fadeIn">
             <Sparkles className="w-4 h-4 text-amber-400 shrink-0" />
             <span className="leading-snug">{accessMessage}</span>
+          </div>
+        )}
+
+        {/* CURRENTLY SIGNED IN BADGE (If switching roles) */}
+        {user && (
+          <div className="p-3 rounded-2xl bg-slate-800/80 border border-slate-700/80 flex items-center justify-between text-xs">
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+              <span className="text-slate-300">
+                Logged in as <strong className="text-white">{user.name}</strong> ({getRoleLabel(user.role)})
+              </span>
+            </div>
+            <button
+              onClick={() => router.push(getDashboardForRole(user.role))}
+              className="text-[11px] font-bold text-emerald-400 hover:text-emerald-300 underline"
+            >
+              Go to Dashboard →
+            </button>
           </div>
         )}
 

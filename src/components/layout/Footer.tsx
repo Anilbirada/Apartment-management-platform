@@ -111,7 +111,7 @@ export function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="/admin" className="hover:text-amber-600 transition-colors">
+                <Link href="/admin/dashboard" className="hover:text-amber-600 transition-colors">
                   Platform Admin Console
                 </Link>
               </li>

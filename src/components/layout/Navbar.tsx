@@ -26,7 +26,8 @@ import {
   X,
   CheckCircle2,
   User,
-  SlidersHorizontal
+  SlidersHorizontal,
+  ChevronRight
 } from 'lucide-react';
 import { themeTokens } from '@/lib/theme';
 import { getDashboardForRole, getRoleLabel, toCanonicalRole } from '@/lib/roles';
@@ -493,14 +494,24 @@ export function Navbar() {
             
             {/* Authenticated Role Indicator / Admin Simulation */}
             {user && canonicalRole !== 'PLATFORM_ADMIN' && (
-              <div
-                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-semibold bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 cursor-default select-none shadow-2xs"
-                title={`Authenticated role: ${getRoleLabel(user.role)}`}
-              >
-                <span className="text-slate-400 dark:text-slate-500 font-normal hidden sm:inline">Role:</span>
-                <span className="font-bold text-slate-800 dark:text-slate-200">
-                  {getRoleLabel(user.role)}
-                </span>
+              <div className="flex items-center gap-1.5">
+                <div
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-semibold bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 cursor-default select-none shadow-2xs"
+                  title={`Authenticated role: ${getRoleLabel(user.role)}`}
+                >
+                  <span className="text-slate-400 dark:text-slate-500 font-normal hidden sm:inline">Role:</span>
+                  <span className="font-bold text-slate-800 dark:text-slate-200">
+                    {getRoleLabel(user.role)}
+                  </span>
+                </div>
+                <Link
+                  href="/admin/dashboard"
+                  className="hidden sm:inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border text-xs font-bold bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/60 dark:hover:bg-amber-900/60 border-amber-300 dark:border-amber-800 text-amber-900 dark:text-amber-200 shadow-2xs transition-all"
+                  title="Open Central SaaS Platform Admin Console"
+                >
+                  <ShieldAlert className="w-3.5 h-3.5 text-amber-600" />
+                  <span>Admin</span>
+                </Link>
               </div>
             )}
 
@@ -991,6 +1002,38 @@ export function Navbar() {
               </Link>
             </>
           ) : null}
+
+          {/* Universal Admin Console & Switcher Access for Mobile */}
+          <div className="pt-3 mt-2 border-t border-slate-200 dark:border-slate-800 space-y-2">
+            <div className="text-[10px] uppercase font-bold text-slate-400 tracking-wider px-2">
+              Platform Administration & Roles
+            </div>
+            <Link
+              href="/admin/dashboard"
+              onClick={() => setMobileMenuOpen(false)}
+              className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl bg-amber-500/10 dark:bg-amber-950/40 border border-amber-500/30 text-amber-900 dark:text-amber-200 text-xs font-bold transition-all"
+            >
+              <div className="flex items-center gap-2">
+                <ShieldAlert className="w-4 h-4 text-amber-600 shrink-0" />
+                <span>Central Platform Admin Console</span>
+              </div>
+              <span className="text-[10px] bg-amber-200 dark:bg-amber-800 text-amber-900 dark:text-amber-100 px-2 py-0.5 rounded-full font-bold">
+                Admin
+              </span>
+            </Link>
+
+            <Link
+              href="/login"
+              onClick={() => setMobileMenuOpen(false)}
+              className="w-full flex items-center justify-between px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800/60 text-slate-700 dark:text-slate-300 text-xs font-semibold hover:bg-slate-200 transition-colors"
+            >
+              <div className="flex items-center gap-2">
+                <SlidersHorizontal className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                <span>Switch Persona / Role (6 Roles)</span>
+              </div>
+              <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
+            </Link>
+          </div>
         </div>
       )}
     </header>
