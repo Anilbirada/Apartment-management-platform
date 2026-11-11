@@ -18,11 +18,8 @@ import {
   SlidersHorizontal,
   ChevronRight
 } from 'lucide-react';
-import { useApp } from '@/context/AppContext';
 
 export default function AdminApprovalsPage() {
-  const { user } = useApp();
-
   const [activeTab, setActiveTab] = useState<'PROVIDERS' | 'LISTINGS' | 'BUSINESSES' | 'CAMPAIGNS' | 'REPORTS'>('PROVIDERS');
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);

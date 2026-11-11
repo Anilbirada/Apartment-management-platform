@@ -19,7 +19,7 @@ import {
   X,
   Sparkles
 } from 'lucide-react';
-import { MembershipBadge } from '@/components/ui/MembershipBadge';
+import { MembershipBadge } from '../../../components/ui/MembershipBadge';
 
 interface ProviderItem {
   id: string;

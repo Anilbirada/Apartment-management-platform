@@ -18,11 +18,8 @@ import {
   Layers,
   RefreshCw
 } from 'lucide-react';
-import { useApp } from '@/context/AppContext';
 
 export default function AdminMonetizationPage() {
-  const { user } = useApp();
-
   const [data, setData] = useState<any>(null);
   const [plans, setPlans] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);

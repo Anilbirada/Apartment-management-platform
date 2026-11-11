@@ -15,11 +15,8 @@ import {
   ChevronRight,
   ExternalLink
 } from 'lucide-react';
-import { useApp } from '@/context/AppContext';
 
 export default function AdminApartmentsPage() {
-  const { user } = useApp();
-
   const [apartments, setApartments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 

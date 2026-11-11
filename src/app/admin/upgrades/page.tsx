@@ -24,7 +24,7 @@ import {
   Check,
   X
 } from 'lucide-react';
-import { MembershipBadge } from '@/components/ui/MembershipBadge';
+import { MembershipBadge } from '../../../components/ui/MembershipBadge';
 
 interface UpgradeApp {
   id: string;

@@ -16,11 +16,8 @@ import {
   ChevronRight,
   TrendingUp
 } from 'lucide-react';
-import { useApp } from '@/context/AppContext';
 
 export default function AdminOverviewPage() {
-  const { user } = useApp();
-
   const [categories, setCategories] = useState<any[]>([]);
   const [stats, setStats] = useState<any>({
     totalUsers: 0,
